@@ -2,17 +2,19 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/database/app_database.dart';
+import '../core/sync/cloud_sync.dart';
 import '../core/sync/op_log_service.dart';
 import '../models/models.dart';
 import '../services/currency_service.dart';
 import '../services/split_calculator.dart';
 
 class ExpenseRepository {
-  ExpenseRepository(this._db, this._opLog, this._currency);
+  ExpenseRepository(this._db, this._opLog, this._currency, this._cloudSync);
 
   final AppDatabase _db;
   final OpLogService _opLog;
   final CurrencyService _currency;
+  final CloudSyncService? _cloudSync;
 
   static const _uuid = Uuid();
 
@@ -122,6 +124,11 @@ class ExpenseRepository {
       );
     });
 
+    // Push to cloud.
+    if (_cloudSync != null) {
+      await _cloudSync.pushTripOps(tripId);
+    }
+
     final row = await (_db.select(_db.expenses)
           ..where((e) => e.id.equals(id)))
         .getSingleOrNull();
@@ -202,6 +209,11 @@ class ExpenseRepository {
         },
       );
     });
+
+    // Push to cloud.
+    if (_cloudSync != null) {
+      await _cloudSync.pushTripOps(original.tripId);
+    }
   }
 
   Future<void> deleteExpense(Expense expense) async {
@@ -216,6 +228,11 @@ class ExpenseRepository {
         payload: {'id': expense.id, 'deleted': true},
       );
     });
+
+    // Push to cloud.
+    if (_cloudSync != null) {
+      await _cloudSync.pushTripOps(expense.tripId);
+    }
   }
 
   Future<Settlement> addSettlement({
@@ -253,6 +270,11 @@ class ExpenseRepository {
         },
       );
     });
+
+    // Push to cloud.
+    if (_cloudSync != null) {
+      await _cloudSync.pushTripOps(tripId);
+    }
 
     final row = await (_db.select(_db.settlements)
           ..where((s) => s.id.equals(id)))

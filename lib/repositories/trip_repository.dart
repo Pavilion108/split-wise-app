@@ -2,15 +2,17 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/database/app_database.dart';
+import '../core/sync/cloud_sync.dart';
 import '../core/sync/invite_code.dart';
 import '../core/sync/op_log_service.dart';
 import '../models/models.dart';
 
 class TripRepository {
-  TripRepository(this._db, this._opLog);
+  TripRepository(this._db, this._opLog, this._cloudSync);
 
   final AppDatabase _db;
   final OpLogService _opLog;
+  final CloudSyncService? _cloudSync;
 
   static const _uuid = Uuid();
 
@@ -122,32 +124,65 @@ class TripRepository {
       );
     });
 
+    // Push to cloud so others can join via invite code.
+    if (_cloudSync != null) {
+      await _cloudSync.pushTripMeta(
+        tripId: tripId,
+        name: name,
+        baseCurrency: baseCurrency,
+        inviteCode: inviteCode,
+        createdAt: now,
+      );
+      await _cloudSync.pushMember(
+        tripId: tripId,
+        memberId: memberId,
+        name: memberName,
+        deviceId: deviceId,
+        joinedAt: now,
+      );
+      await _cloudSync.pushTripOps(tripId);
+    }
+
     return (await getTrip(tripId))!;
   }
 
   /// Join an existing trip by invite code.
+  /// First tries cloud lookup (works on any network), then falls back to local.
   Future<Trip?> joinTrip({
     required String inviteCode,
     required String memberName,
     required String deviceId,
   }) async {
     final code = inviteCode.toUpperCase().trim();
-    final trip = await (_db.select(_db.trips)
-          ..where((t) =>
-              t.inviteCode.equals(code) & t.deleted.equals(false)))
-        .getSingleOrNull();
 
-    if (trip == null) return null;
+    // --- Step 1: Try cloud lookup (works across any network) ---
+    String? tripId;
+    if (_cloudSync != null) {
+      tripId = await _cloudSync.pullTripByCode(code);
+    }
+
+    // --- Step 2: Fallback to local DB ---
+    if (tripId == null) {
+      final trip = await (_db.select(_db.trips)
+            ..where((t) =>
+                t.inviteCode.equals(code) & t.deleted.equals(false)))
+          .getSingleOrNull();
+      tripId = trip?.id;
+    }
+
+    if (tripId == null) return null;
+
+    final resolvedTripId = tripId;
 
     // Check if already a member.
     final existing = await (_db.select(_db.members)
           ..where((m) =>
-              m.tripId.equals(trip.id) &
+              m.tripId.equals(resolvedTripId) &
               m.deviceId.equals(deviceId) &
               m.deleted.equals(false)))
         .getSingleOrNull();
 
-    if (existing != null) return Trip.fromRow(trip);
+    if (existing != null) return getTrip(resolvedTripId);
 
     // Add as member.
     final memberId = _uuid.v4();
@@ -155,18 +190,18 @@ class TripRepository {
     await _db.transaction(() async {
       await _db.into(_db.members).insert(MembersCompanion.insert(
             id: memberId,
-            tripId: trip.id,
+            tripId: resolvedTripId,
             name: memberName,
             deviceId: deviceId,
             joinedAt: now,
           ));
       await _opLog.append(
-        tripId: trip.id,
+        tripId: resolvedTripId,
         opType: 'member',
         entityId: memberId,
         payload: {
           'id': memberId,
-          'tripId': trip.id,
+          'tripId': resolvedTripId,
           'name': memberName,
           'deviceId': deviceId,
           'joinedAt': now.toIso8601String(),
@@ -174,7 +209,19 @@ class TripRepository {
       );
     });
 
-    return Trip.fromRow(trip);
+    // Push new member to cloud.
+    if (_cloudSync != null) {
+      await _cloudSync.pushMember(
+        tripId: resolvedTripId,
+        memberId: memberId,
+        name: memberName,
+        deviceId: deviceId,
+        joinedAt: now,
+      );
+      await _cloudSync.pushTripOps(resolvedTripId);
+    }
+
+    return getTrip(resolvedTripId);
   }
 
   Future<Member> addMember({
@@ -210,6 +257,18 @@ class TripRepository {
       );
     });
 
+    // Push to cloud.
+    if (_cloudSync != null) {
+      await _cloudSync.pushMember(
+        tripId: tripId,
+        memberId: id,
+        name: name,
+        deviceId: deviceId,
+        joinedAt: now,
+      );
+      await _cloudSync.pushTripOps(tripId);
+    }
+
     return (await getMember(id))!;
   }
 
@@ -226,6 +285,11 @@ class TripRepository {
         payload: {'id': memberId, 'deleted': true},
       );
     });
+
+    // Push to cloud.
+    if (_cloudSync != null) {
+      await _cloudSync.pushTripOps(member.tripId);
+    }
   }
 
   Future<Category> rememberCategory(String tripId, String name) async {
@@ -257,6 +321,11 @@ class TripRepository {
         },
       );
     });
+
+    // Push to cloud.
+    if (_cloudSync != null) {
+      await _cloudSync.pushTripOps(tripId);
+    }
 
     final row = await (_db.select(_db.categories)
           ..where((c) =>

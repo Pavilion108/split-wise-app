@@ -1,8 +1,10 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/constants.dart';
+import '../../core/sync/invite_code.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
 import '../../services/upi_launcher.dart';
@@ -36,6 +38,16 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
       appBar: AppBar(
         title: Text(widget.tripName),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            tooltip: 'Sync with cloud',
+            onPressed: () => _syncWithCloud(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share invite code',
+            onPressed: () => _shareInviteCode(context),
+          ),
           IconButton(
             icon: const Icon(Icons.person_add_outlined),
             tooltip: 'Members',
@@ -127,6 +139,7 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
           members: members,
           me: me,
           balance: balance,
+          onRefresh: () => _syncWithCloud(context),
         );
       case 1:
         return _ExpensesTab(
@@ -145,6 +158,38 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
         return const SizedBox();
     }
   }
+
+  Future<void> _syncWithCloud(BuildContext context) async {
+    final cloudSync = ref.read(cloudSyncProvider);
+    final result = await cloudSync.fullSync(widget.tripId);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.success
+                ? 'Synced: ${result.opsPushed} sent, ${result.opsPulled} received'
+                : 'Sync failed: ${result.error}',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _shareInviteCode(BuildContext context) async {
+    final repo = ref.read(tripRepositoryProvider);
+    final trip = await repo.getTrip(widget.tripId);
+    if (trip == null || !mounted) return;
+
+    final message = InviteCode.buildWhatsAppMessage(
+      code: trip.inviteCode,
+      tripName: trip.name,
+      creatorName: 'Me',
+      baseCurrency: trip.baseCurrency,
+    );
+
+    await Share.share(message);
+  }
 }
 
 // --- Overview Tab ---
@@ -155,12 +200,14 @@ class _OverviewTab extends ConsumerWidget {
     required this.members,
     required this.me,
     required this.balance,
+    this.onRefresh,
   });
 
   final Trip trip;
   final List<Member> members;
   final Member? me;
   final TripBalance? balance;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -170,7 +217,7 @@ class _OverviewTab extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
 
     return RefreshIndicator(
-      onRefresh: () async {},
+      onRefresh: () async => onRefresh?.call(),
       child: ListView(
         padding: const EdgeInsets.only(bottom: 96),
         children: [

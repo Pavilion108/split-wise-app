@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/database/app_database.dart';
 import '../core/sync/ble_sync.dart';
+import '../core/sync/cloud_sync.dart';
 import '../core/sync/device_identity.dart';
 import '../core/sync/op_log_service.dart';
 import '../core/sync/sync_service.dart';
@@ -34,28 +35,18 @@ final currencyServiceProvider = Provider<CurrencyService>((ref) {
   return CurrencyService(ref.read(databaseProvider));
 });
 
-// --- Repositories ---
-
-final tripRepositoryProvider = Provider<TripRepository>((ref) {
-  return TripRepository(
-    ref.read(databaseProvider),
-    ref.read(opLogServiceProvider),
-  );
-});
-
-final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
-  return ExpenseRepository(
-    ref.read(databaseProvider),
-    ref.read(opLogServiceProvider),
-    ref.read(currencyServiceProvider),
-  );
-});
-
 // --- Sync ---
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   return SyncService(
     ref.read(databaseProvider),
+    ref.read(deviceIdentityProvider).id,
+  );
+});
+
+final cloudSyncProvider = Provider<CloudSyncService>((ref) {
+  return CloudSyncService(
+    ref.read(syncServiceProvider),
     ref.read(deviceIdentityProvider).id,
   );
 });
@@ -70,6 +61,25 @@ final wifiSyncProvider = Provider<WifiSyncTransport>((ref) {
 final bleSyncProvider = Provider<BleSyncTransport>((ref) {
   return BleSyncTransport(
     ref.read(syncServiceProvider),
+  );
+});
+
+// --- Repositories ---
+
+final tripRepositoryProvider = Provider<TripRepository>((ref) {
+  return TripRepository(
+    ref.read(databaseProvider),
+    ref.read(opLogServiceProvider),
+    ref.read(cloudSyncProvider),
+  );
+});
+
+final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
+  return ExpenseRepository(
+    ref.read(databaseProvider),
+    ref.read(opLogServiceProvider),
+    ref.read(currencyServiceProvider),
+    ref.read(cloudSyncProvider),
   );
 });
 
