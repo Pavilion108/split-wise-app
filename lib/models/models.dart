@@ -6,6 +6,7 @@ class Trip {
     required this.name,
     required this.baseCurrency,
     required this.createdAt,
+    this.inviteCode = '',
     this.deleted = false,
   });
 
@@ -14,6 +15,7 @@ class Trip {
         name: row.name,
         baseCurrency: row.baseCurrency,
         createdAt: row.createdAt,
+        inviteCode: row.inviteCode,
         deleted: row.deleted,
       );
 
@@ -21,6 +23,7 @@ class Trip {
   final String name;
   final String baseCurrency;
   final DateTime createdAt;
+  final String inviteCode;
   final bool deleted;
 }
 

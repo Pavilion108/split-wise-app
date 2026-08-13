@@ -10,6 +10,8 @@ class Trips extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get baseCurrency => text().withDefault(const Constant('INR'))();
+  /// 6-char invite code for sharing via WhatsApp/Gmail.
+  TextColumn get inviteCode => text().withDefault(const Constant(''))();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
 
@@ -133,11 +135,19 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
+          await m.createAll();
+          await _seedDefaultCategories();
+        },
+        onUpgrade: (m, from, to) async {
+          // Fresh rebuild for development.
+          for (final table in allTables) {
+            await m.deleteTable(table.actualTableName);
+          }
           await m.createAll();
           await _seedDefaultCategories();
         },

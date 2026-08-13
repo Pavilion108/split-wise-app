@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/database/app_database.dart';
+import '../core/sync/invite_code.dart';
 import '../core/sync/op_log_service.dart';
 import '../models/models.dart';
 
@@ -76,6 +77,7 @@ class TripRepository {
   }) async {
     final tripId = _uuid.v4();
     final memberId = _uuid.v4();
+    final inviteCode = InviteCode.generate();
     final now = DateTime.now();
 
     await _db.transaction(() async {
@@ -83,6 +85,7 @@ class TripRepository {
             id: tripId,
             name: name,
             baseCurrency: Value(baseCurrency),
+            inviteCode: Value(inviteCode),
             createdAt: now,
           ));
 
@@ -120,6 +123,58 @@ class TripRepository {
     });
 
     return (await getTrip(tripId))!;
+  }
+
+  /// Join an existing trip by invite code.
+  Future<Trip?> joinTrip({
+    required String inviteCode,
+    required String memberName,
+    required String deviceId,
+  }) async {
+    final code = inviteCode.toUpperCase().trim();
+    final trip = await (_db.select(_db.trips)
+          ..where((t) =>
+              t.inviteCode.equals(code) & t.deleted.equals(false)))
+        .getSingleOrNull();
+
+    if (trip == null) return null;
+
+    // Check if already a member.
+    final existing = await (_db.select(_db.members)
+          ..where((m) =>
+              m.tripId.equals(trip.id) &
+              m.deviceId.equals(deviceId) &
+              m.deleted.equals(false)))
+        .getSingleOrNull();
+
+    if (existing != null) return Trip.fromRow(trip);
+
+    // Add as member.
+    final memberId = _uuid.v4();
+    final now = DateTime.now();
+    await _db.transaction(() async {
+      await _db.into(_db.members).insert(MembersCompanion.insert(
+            id: memberId,
+            tripId: trip.id,
+            name: memberName,
+            deviceId: deviceId,
+            joinedAt: now,
+          ));
+      await _opLog.append(
+        tripId: trip.id,
+        opType: 'member',
+        entityId: memberId,
+        payload: {
+          'id': memberId,
+          'tripId': trip.id,
+          'name': memberName,
+          'deviceId': deviceId,
+          'joinedAt': now.toIso8601String(),
+        },
+      );
+    });
+
+    return Trip.fromRow(trip);
   }
 
   Future<Member> addMember({

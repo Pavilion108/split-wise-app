@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/database/app_database.dart';
+import '../core/sync/ble_sync.dart';
 import '../core/sync/device_identity.dart';
 import '../core/sync/op_log_service.dart';
+import '../core/sync/sync_service.dart';
+import '../core/sync/wifi_sync.dart';
 import '../models/models.dart';
 import '../repositories/expense_repository.dart';
 import '../repositories/trip_repository.dart';
@@ -48,9 +51,30 @@ final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   );
 });
 
-// --- Balance computation ---
+// --- Sync ---
 
-/// Uses StreamProvider.family to reactively compute balance from DB streams.
+final syncServiceProvider = Provider<SyncService>((ref) {
+  return SyncService(
+    ref.read(databaseProvider),
+    ref.read(deviceIdentityProvider).id,
+  );
+});
+
+final wifiSyncProvider = Provider<WifiSyncTransport>((ref) {
+  return WifiSyncTransport(
+    ref.read(syncServiceProvider),
+    ref.read(deviceIdentityProvider).id,
+  );
+});
+
+final bleSyncProvider = Provider<BleSyncTransport>((ref) {
+  return BleSyncTransport(
+    ref.read(syncServiceProvider),
+  );
+});
+
+// --- Balance ---
+
 final tripBalanceStreamProvider =
     StreamProvider.family<TripBalance, String>((ref, tripId) async* {
   final repo = ref.read(expenseRepositoryProvider);
@@ -70,7 +94,6 @@ final tripBalanceStreamProvider =
   }
 });
 
-/// One-shot balance provider for simple reads.
 final tripBalanceProvider =
     Provider.family<AsyncValue<TripBalance?>, String>((ref, tripId) {
   final streamRef = ref.watch(tripBalanceStreamProvider(tripId));

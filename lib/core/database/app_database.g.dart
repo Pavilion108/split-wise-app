@@ -38,6 +38,18 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     requiredDuringInsert: false,
     defaultValue: const Constant('INR'),
   );
+  static const VerificationMeta _inviteCodeMeta = const VerificationMeta(
+    'inviteCode',
+  );
+  @override
+  late final GeneratedColumn<String> inviteCode = GeneratedColumn<String>(
+    'invite_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _deletedMeta = const VerificationMeta(
     'deleted',
   );
@@ -69,6 +81,7 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     id,
     name,
     baseCurrency,
+    inviteCode,
     deleted,
     createdAt,
   ];
@@ -106,6 +119,12 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         ),
       );
     }
+    if (data.containsKey('invite_code')) {
+      context.handle(
+        _inviteCodeMeta,
+        inviteCode.isAcceptableOrUnknown(data['invite_code']!, _inviteCodeMeta),
+      );
+    }
     if (data.containsKey('deleted')) {
       context.handle(
         _deletedMeta,
@@ -141,6 +160,10 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         DriftSqlType.string,
         data['${effectivePrefix}base_currency'],
       )!,
+      inviteCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}invite_code'],
+      )!,
       deleted: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}deleted'],
@@ -162,12 +185,16 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   final String id;
   final String name;
   final String baseCurrency;
+
+  /// 6-char invite code for sharing via WhatsApp/Gmail.
+  final String inviteCode;
   final bool deleted;
   final DateTime createdAt;
   const TripRow({
     required this.id,
     required this.name,
     required this.baseCurrency,
+    required this.inviteCode,
     required this.deleted,
     required this.createdAt,
   });
@@ -177,6 +204,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['base_currency'] = Variable<String>(baseCurrency);
+    map['invite_code'] = Variable<String>(inviteCode);
     map['deleted'] = Variable<bool>(deleted);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -187,6 +215,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       id: Value(id),
       name: Value(name),
       baseCurrency: Value(baseCurrency),
+      inviteCode: Value(inviteCode),
       deleted: Value(deleted),
       createdAt: Value(createdAt),
     );
@@ -201,6 +230,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       baseCurrency: serializer.fromJson<String>(json['baseCurrency']),
+      inviteCode: serializer.fromJson<String>(json['inviteCode']),
       deleted: serializer.fromJson<bool>(json['deleted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -212,6 +242,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'baseCurrency': serializer.toJson<String>(baseCurrency),
+      'inviteCode': serializer.toJson<String>(inviteCode),
       'deleted': serializer.toJson<bool>(deleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -221,12 +252,14 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     String? id,
     String? name,
     String? baseCurrency,
+    String? inviteCode,
     bool? deleted,
     DateTime? createdAt,
   }) => TripRow(
     id: id ?? this.id,
     name: name ?? this.name,
     baseCurrency: baseCurrency ?? this.baseCurrency,
+    inviteCode: inviteCode ?? this.inviteCode,
     deleted: deleted ?? this.deleted,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -237,6 +270,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       baseCurrency: data.baseCurrency.present
           ? data.baseCurrency.value
           : this.baseCurrency,
+      inviteCode: data.inviteCode.present
+          ? data.inviteCode.value
+          : this.inviteCode,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -248,6 +284,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('baseCurrency: $baseCurrency, ')
+          ..write('inviteCode: $inviteCode, ')
           ..write('deleted: $deleted, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -255,7 +292,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   }
 
   @override
-  int get hashCode => Object.hash(id, name, baseCurrency, deleted, createdAt);
+  int get hashCode =>
+      Object.hash(id, name, baseCurrency, inviteCode, deleted, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -263,6 +301,7 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           other.id == this.id &&
           other.name == this.name &&
           other.baseCurrency == this.baseCurrency &&
+          other.inviteCode == this.inviteCode &&
           other.deleted == this.deleted &&
           other.createdAt == this.createdAt);
 }
@@ -271,6 +310,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> baseCurrency;
+  final Value<String> inviteCode;
   final Value<bool> deleted;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
@@ -278,6 +318,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.baseCurrency = const Value.absent(),
+    this.inviteCode = const Value.absent(),
     this.deleted = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -286,6 +327,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     required String id,
     required String name,
     this.baseCurrency = const Value.absent(),
+    this.inviteCode = const Value.absent(),
     this.deleted = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
@@ -296,6 +338,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? baseCurrency,
+    Expression<String>? inviteCode,
     Expression<bool>? deleted,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
@@ -304,6 +347,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (baseCurrency != null) 'base_currency': baseCurrency,
+      if (inviteCode != null) 'invite_code': inviteCode,
       if (deleted != null) 'deleted': deleted,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -314,6 +358,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Value<String>? id,
     Value<String>? name,
     Value<String>? baseCurrency,
+    Value<String>? inviteCode,
     Value<bool>? deleted,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
@@ -322,6 +367,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       id: id ?? this.id,
       name: name ?? this.name,
       baseCurrency: baseCurrency ?? this.baseCurrency,
+      inviteCode: inviteCode ?? this.inviteCode,
       deleted: deleted ?? this.deleted,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -339,6 +385,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     }
     if (baseCurrency.present) {
       map['base_currency'] = Variable<String>(baseCurrency.value);
+    }
+    if (inviteCode.present) {
+      map['invite_code'] = Variable<String>(inviteCode.value);
     }
     if (deleted.present) {
       map['deleted'] = Variable<bool>(deleted.value);
@@ -358,6 +407,7 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('baseCurrency: $baseCurrency, ')
+          ..write('inviteCode: $inviteCode, ')
           ..write('deleted: $deleted, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -3897,6 +3947,7 @@ typedef $$TripsTableCreateCompanionBuilder = TripsCompanion Function({
   required String id,
   required String name,
   Value<String> baseCurrency,
+  Value<String> inviteCode,
   Value<bool> deleted,
   required DateTime createdAt,
   Value<int> rowid,
@@ -3905,6 +3956,7 @@ typedef $$TripsTableUpdateCompanionBuilder = TripsCompanion Function({
   Value<String> id,
   Value<String> name,
   Value<String> baseCurrency,
+  Value<String> inviteCode,
   Value<bool> deleted,
   Value<DateTime> createdAt,
   Value<int> rowid,
@@ -4008,6 +4060,11 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
 
   ColumnFilters<String> get baseCurrency => $composableBuilder(
     column: $table.baseCurrency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get inviteCode => $composableBuilder(
+    column: $table.inviteCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4146,6 +4203,11 @@ class $$TripsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get inviteCode => $composableBuilder(
+    column: $table.inviteCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get deleted => $composableBuilder(
     column: $table.deleted,
     builder: (column) => ColumnOrderings(column),
@@ -4174,6 +4236,11 @@ class $$TripsTableAnnotationComposer
 
   GeneratedColumn<String> get baseCurrency => $composableBuilder(
     column: $table.baseCurrency,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get inviteCode => $composableBuilder(
+    column: $table.inviteCode,
     builder: (column) => column,
   );
 
@@ -4320,6 +4387,7 @@ class $$TripsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> baseCurrency = const Value.absent(),
+                Value<String> inviteCode = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4327,6 +4395,7 @@ class $$TripsTableTableManager
                 id: id,
                 name: name,
                 baseCurrency: baseCurrency,
+                inviteCode: inviteCode,
                 deleted: deleted,
                 createdAt: createdAt,
                 rowid: rowid,
@@ -4336,6 +4405,7 @@ class $$TripsTableTableManager
                 required String id,
                 required String name,
                 Value<String> baseCurrency = const Value.absent(),
+                Value<String> inviteCode = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
@@ -4343,6 +4413,7 @@ class $$TripsTableTableManager
                 id: id,
                 name: name,
                 baseCurrency: baseCurrency,
+                inviteCode: inviteCode,
                 deleted: deleted,
                 createdAt: createdAt,
                 rowid: rowid,
