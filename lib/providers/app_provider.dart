@@ -10,8 +10,12 @@ import '../core/sync/wifi_sync.dart';
 import '../models/models.dart';
 import '../repositories/expense_repository.dart';
 import '../repositories/trip_repository.dart';
+import '../services/auth_service.dart';
 import '../services/balance_engine.dart';
 import '../services/currency_service.dart';
+import '../services/daily_brief_service.dart';
+import '../services/drive_service.dart';
+import '../services/whatsapp_service.dart';
 
 // --- Infrastructure ---
 
@@ -33,6 +37,30 @@ final opLogServiceProvider = Provider<OpLogService>((ref) {
 
 final currencyServiceProvider = Provider<CurrencyService>((ref) {
   return CurrencyService(ref.read(databaseProvider));
+});
+
+// --- Auth ---
+
+final authServiceProvider = Provider<AuthService>((ref) {
+  final service = AuthService();
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+final authStateProvider = StreamProvider<AuthState>((ref) {
+  return ref.read(authServiceProvider).authState;
+});
+
+// --- Drive ---
+
+final driveServiceProvider = Provider<DriveService>((ref) {
+  return DriveService(ref.read(authServiceProvider));
+});
+
+// --- WhatsApp ---
+
+final whatsAppServiceProvider = Provider<WhatsAppService>((ref) {
+  return WhatsAppService();
 });
 
 // --- Sync ---
@@ -80,6 +108,16 @@ final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
     ref.read(opLogServiceProvider),
     ref.read(currencyServiceProvider),
     ref.read(cloudSyncProvider),
+  );
+});
+
+// --- Daily Brief ---
+
+final dailyBriefServiceProvider = Provider<DailyBriefService>((ref) {
+  return DailyBriefService(
+    ref.read(expenseRepositoryProvider),
+    ref.read(tripRepositoryProvider),
+    ref.read(whatsAppServiceProvider),
   );
 });
 
