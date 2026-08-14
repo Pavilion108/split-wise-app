@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/app_provider.dart';
+import '../widgets/sign_in_button.dart';
 import 'home_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -84,7 +85,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildGoogleSignInStep() {
-    final authState = ref.watch(authStateProvider);
+    final auth = ref.watch(authServiceProvider);
 
     return Padding(
       padding: const EdgeInsets.all(32),
@@ -114,47 +115,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
           ),
           const SizedBox(height: 32),
-          authState.when(
-            loading: () => const CircularProgressIndicator(),
-            error: (e, _) => Text('Error: $e'),
-            data: (state) {
-              if (state.isSignedIn) {
-                return Column(
-                  children: [
-                    if (state.user?.photoUrl != null)
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundImage: NetworkImage(state.user!.photoUrl!),
-                      ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Signed in as ${state.user?.displayName}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () => setState(() => _step = 2),
-                      child: const Text('Continue'),
-                    ),
-                  ],
-                );
-              }
-              return FilledButton.icon(
-                onPressed: () async {
-                  final result = await ref.read(authServiceProvider).signIn();
-                  if (result.success && mounted) {
-                    setState(() => _step = 2);
-                  } else if (result.error != null && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(result.error!)),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.g_mobiledata, size: 24),
-                label: const Text('Sign in with Google'),
-              );
-            },
-          ),
+          if (auth.isSignedIn)
+            Column(
+              children: [
+                if (auth.currentUser?.photoUrl != null)
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundImage: NetworkImage(auth.currentUser!.photoUrl!),
+                  ),
+                const SizedBox(height: 8),
+                Text(
+                  'Signed in as ${auth.currentUser?.displayName}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => setState(() => _step = 2),
+                  child: const Text('Continue'),
+                ),
+              ],
+            )
+          else
+            const SignInButton(),
         ],
       ),
     );

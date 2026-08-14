@@ -1,16 +1,12 @@
-import 'dart:async';
-
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 /// Authentication service using Google Sign-In v7.x API.
 /// Provides user identity and Drive access tokens.
-class AuthService {
+class AuthService extends ChangeNotifier {
   AuthService() : _googleSignIn = GoogleSignIn.instance;
 
   final GoogleSignIn _googleSignIn;
-
-  final _authController = StreamController<AuthState>.broadcast();
-  Stream<AuthState> get authState => _authController.stream;
 
   GoogleSignInAccount? _currentUser;
   GoogleSignInAccount? get currentUser => _currentUser;
@@ -20,27 +16,32 @@ class AuthService {
   /// Initialize and check if user was previously signed in.
   Future<void> checkSignIn() async {
     try {
-      await _googleSignIn.initialize();
+      await _googleSignIn.initialize().timeout(const Duration(seconds: 5));
     } catch (_) {}
 
     // Listen to auth events.
     _googleSignIn.authenticationEvents.listen((event) {
       if (event is GoogleSignInAuthenticationEventSignIn) {
         _currentUser = event.user;
-        _authController.add(AuthState.signedIn(event.user));
+        notifyListeners();
       } else if (event is GoogleSignInAuthenticationEventSignOut) {
         _currentUser = null;
-        _authController.add(AuthState.signedOut());
+        notifyListeners();
       }
     });
 
-    // Try lightweight auth (silent sign-in).
-    final account = await _googleSignIn.attemptLightweightAuthentication();
-    if (account != null) {
-      _currentUser = account;
-      _authController.add(AuthState.signedIn(account));
-    } else {
-      _authController.add(AuthState.signedOut());
+    // Try lightweight auth (silent sign-in) — skip on web (needs clientId).
+    if (!kIsWeb) {
+      try {
+        final future = _googleSignIn.attemptLightweightAuthentication();
+        final account = future == null
+            ? null
+            : await future.timeout(const Duration(seconds: 5));
+        if (account != null) {
+          _currentUser = account;
+          notifyListeners();
+        }
+      } catch (_) {}
     }
   }
 
@@ -50,7 +51,7 @@ class AuthService {
       final account = await _googleSignIn.authenticate();
 
       _currentUser = account;
-      _authController.add(AuthState.signedIn(account));
+      notifyListeners();
 
       // Get authorization for Drive scopes.
       final authorization = await account.authorizationClient
@@ -74,7 +75,7 @@ class AuthService {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     _currentUser = null;
-    _authController.add(AuthState.signedOut());
+    notifyListeners();
   }
 
   /// Get fresh access token for Drive API calls.
@@ -89,10 +90,6 @@ class AuthService {
     } catch (_) {
       return null;
     }
-  }
-
-  void dispose() {
-    _authController.close();
   }
 }
 

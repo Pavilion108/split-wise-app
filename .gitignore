@@ -45,7 +45,7 @@ app.*.map.json
 # Platform directories
 /android/
 /ios/
-/web/
+
 /linux/
 /macos/
 /windows/

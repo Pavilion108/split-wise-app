@@ -1,12 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/database/app_database.dart';
-import '../core/sync/ble_sync.dart';
 import '../core/sync/cloud_sync.dart';
 import '../core/sync/device_identity.dart';
 import '../core/sync/op_log_service.dart';
 import '../core/sync/sync_service.dart';
-import '../core/sync/wifi_sync.dart';
 import '../models/models.dart';
 import '../repositories/expense_repository.dart';
 import '../repositories/trip_repository.dart';
@@ -16,6 +15,12 @@ import '../services/currency_service.dart';
 import '../services/daily_brief_service.dart';
 import '../services/drive_service.dart';
 import '../services/whatsapp_service.dart';
+
+// Conditionally import platform-specific sync modules.
+// On web, these stubs are unused but the providers still need
+// to compile — the actual constructors are never called.
+import '../core/sync/ble_sync.dart' if (dart.library.html) '../core/sync/ble_sync.dart';
+import '../core/sync/wifi_sync.dart' if (dart.library.html) '../core/sync/wifi_sync.dart';
 
 // --- Infrastructure ---
 
@@ -41,14 +46,8 @@ final currencyServiceProvider = Provider<CurrencyService>((ref) {
 
 // --- Auth ---
 
-final authServiceProvider = Provider<AuthService>((ref) {
-  final service = AuthService();
-  ref.onDispose(service.dispose);
-  return service;
-});
-
-final authStateProvider = StreamProvider<AuthState>((ref) {
-  return ref.read(authServiceProvider).authState;
+final authServiceProvider = ChangeNotifierProvider<AuthService>((ref) {
+  return AuthService();
 });
 
 // --- Drive ---
@@ -79,14 +78,16 @@ final cloudSyncProvider = Provider<CloudSyncService>((ref) {
   );
 });
 
-final wifiSyncProvider = Provider<WifiSyncTransport>((ref) {
+final wifiSyncProvider = Provider<WifiSyncTransport?>((ref) {
+  if (kIsWeb) return null; // WiFi sync uses dart:io — unavailable on web.
   return WifiSyncTransport(
     ref.read(syncServiceProvider),
     ref.read(deviceIdentityProvider).id,
   );
 });
 
-final bleSyncProvider = Provider<BleSyncTransport>((ref) {
+final bleSyncProvider = Provider<BleSyncTransport?>((ref) {
+  if (kIsWeb) return null; // BLE not available on web.
   return BleSyncTransport(
     ref.read(syncServiceProvider),
   );
@@ -151,3 +152,4 @@ final tripBalanceProvider =
     data: (b) => AsyncData(b),
   );
 });
+
