@@ -168,7 +168,13 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  static QueryExecutor _openConnection() => driftDatabase(name: 'split_wise');
+  static QueryExecutor _openConnection() => driftDatabase(
+        name: 'split_wise',
+        web: DriftWebOptions(
+          sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+          driftWorker: Uri.parse('drift_worker.js'),
+        ),
+      );
 }
 
 String _uuid() {
