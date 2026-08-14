@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../constants.dart';
 
@@ -135,7 +136,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -176,9 +177,6 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
 }
-
 String _uuid() {
-  final now = DateTime.now().microsecondsSinceEpoch;
-  final rand = now.hashCode.toRadixString(36);
-  return '${now.toRadixString(36)}_$rand';
+  return const Uuid().v4();
 }
