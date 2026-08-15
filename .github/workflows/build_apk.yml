@@ -1,4 +1,4 @@
-name: Build APK & Deploy
+name: Build APK
 
 on:
   push:
@@ -8,10 +8,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
-    name: Build APK & Deploy to Firebase Hosting
+  build-apk:
+    name: Build Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -39,18 +39,4 @@ jobs:
         with:
           name: split-wise-app-release
           path: build/app/outputs/flutter-apk/app-release.apk
-
-      - name: Build Web
-        run: flutter build web --release --no-tree-shake-icons
-
-      - name: Place APK in web build
-        run: cp build/app/outputs/flutter-apk/app-release.apk build/web/split-wise-app
-
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
-      - name: Deploy to Firebase Hosting
-        if: env.FIREBASE_TOKEN != ''
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: firebase deploy --only hosting --token "$FIREBASE_TOKEN" --project splitwiser-26
+          retention-days: 30
