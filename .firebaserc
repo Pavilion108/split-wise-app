@@ -1,5 +1,12 @@
 {
   "projects": {
     "default": "splitwiser-26"
+  },
+  "targets": {
+    "splitwiser-26": {
+      "hosting": {
+        "default": "splitwiser-26"
+      }
+    }
   }
 }
