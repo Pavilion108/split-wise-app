@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -34,13 +34,13 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: split-wise-app-release
           path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master'
         with:
           files: build/app/outputs/flutter-apk/app-release.apk
