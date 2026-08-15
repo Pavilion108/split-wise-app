@@ -37,14 +37,18 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android build outputs (keep project files)
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
+/android/.gradle/
+/android/local.properties
 
-# Platform directories
-/android/
-/ios/
+# iOS build outputs (keep project files)
+/ios/Pods/
+/ios/.symlinks/
+/ios/build/
 
 /linux/
 /macos/

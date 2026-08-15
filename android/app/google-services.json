@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "612502468471",
+    "project_id": "splitwiser-26",
+    "storage_bucket": "splitwiser-26.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:612502468471:android:13ca6930914bd0361f1372",
+        "android_client_info": {
+          "package_name": "com.splitwise.app.split_wise"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJ_kzTLJKQYRknZdw_dFfe8wJjOqTCmCw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

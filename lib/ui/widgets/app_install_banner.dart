@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/platform/platform_detect.dart';
+import '../../core/platform/web_download.dart';
 
 /// Banner shown after web sign-in prompting user to open/download the native app.
 class AppInstallBanner extends StatelessWidget {
@@ -80,11 +80,13 @@ class AppInstallBanner extends StatelessWidget {
   }
 
   Future<void> _downloadApk(BuildContext context) async {
-    final uri = Uri.parse(PlatformDetect.apkDownloadUrl);
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && context.mounted) {
+    final ok = await downloadFile(
+      PlatformDetect.apkDownloadUrl,
+      fileName: 'split-wise.apk',
+    );
+    if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open download link')),
+        const SnackBar(content: Text('Could not start download')),
       );
     }
   }

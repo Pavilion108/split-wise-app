@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/platform/platform_detect.dart';
+import '../../core/platform/web_download.dart';
 import '../../providers/app_provider.dart';
 import '../widgets/sign_in_button.dart';
 import 'home_screen.dart';
@@ -255,11 +256,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _downloadApk() async {
-    final uri = Uri.parse(PlatformDetect.apkDownloadUrl);
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
+    final ok = await downloadFile(
+      PlatformDetect.apkDownloadUrl,
+      fileName: 'split-wise.apk',
+    );
+    if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open download link')),
+        const SnackBar(content: Text('Could not start download')),
       );
     }
   }
