@@ -7,6 +7,9 @@ class Trip {
     required this.baseCurrency,
     required this.createdAt,
     this.inviteCode = '',
+    this.driveFolderId = '',
+    this.driveFolderLink = '',
+    this.whatsappGroupLink = '',
     this.deleted = false,
   });
 
@@ -16,6 +19,9 @@ class Trip {
         baseCurrency: row.baseCurrency,
         createdAt: row.createdAt,
         inviteCode: row.inviteCode,
+        driveFolderId: row.driveFolderId,
+        driveFolderLink: row.driveFolderLink,
+        whatsappGroupLink: row.whatsappGroupLink,
         deleted: row.deleted,
       );
 
@@ -24,6 +30,9 @@ class Trip {
   final String baseCurrency;
   final DateTime createdAt;
   final String inviteCode;
+  final String driveFolderId;
+  final String driveFolderLink;
+  final String whatsappGroupLink;
   final bool deleted;
 }
 

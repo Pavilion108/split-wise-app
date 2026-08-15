@@ -13,6 +13,12 @@ class Trips extends Table {
   TextColumn get baseCurrency => text().withDefault(const Constant('INR'))();
   /// 6-char invite code for sharing via WhatsApp/Gmail.
   TextColumn get inviteCode => text().withDefault(const Constant(''))();
+  /// Google Drive folder ID for this trip's photos/receipts.
+  TextColumn get driveFolderId => text().withDefault(const Constant(''))();
+  /// Google Drive web link (for sharing with members).
+  TextColumn get driveFolderLink => text().withDefault(const Constant(''))();
+  /// WhatsApp group invite link.
+  TextColumn get whatsappGroupLink => text().withDefault(const Constant(''))();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
 
@@ -136,7 +142,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(

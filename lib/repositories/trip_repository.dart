@@ -146,13 +146,36 @@ class TripRepository {
     }
 
     // Create Drive folder for trip (photos, videos, receipts).
-    if (_driveService != null) {
+    String driveFolderId = '';
+    String driveFolderLink = '';
+    final drive = _driveService;
+    if (drive != null) {
       try {
-        final tripFolder = await _driveService!.createTripFolder(
+        final tripFolder = await drive.createTripFolder(
           tripName: name,
           tripId: tripId,
         );
-        await _driveService!.createTripSubFolders(tripFolder.folderId);
+        await drive.createTripSubFolders(tripFolder.folderId);
+        driveFolderId = tripFolder.folderId;
+        driveFolderLink = tripFolder.link;
+
+        // Update local DB with Drive folder info.
+        await (_db.update(_db.trips)..where((t) => t.id.equals(tripId)))
+            .write(TripsCompanion(
+          driveFolderId: Value(driveFolderId),
+          driveFolderLink: Value(driveFolderLink),
+        ));
+
+        // Update cloud metadata with Drive folder link.
+        if (_cloudSync != null) {
+          await _cloudSync.updateTripMeta(
+            tripId: tripId,
+            updates: {
+              'driveFolderId': driveFolderId,
+              'driveFolderLink': driveFolderLink,
+            },
+          );
+        }
       } catch (_) {}
     }
 
@@ -232,6 +255,22 @@ class TripRepository {
         joinedAt: now,
       );
       await _cloudSync.pushTripOps(resolvedTripId);
+    }
+
+    // Pull Drive folder info from cloud and update local DB.
+    if (_cloudSync != null) {
+      final meta = await _cloudSync.pullTripMeta(resolvedTripId);
+      if (meta != null) {
+        final folderId = meta['driveFolderId'] as String? ?? '';
+        final folderLink = meta['driveFolderLink'] as String? ?? '';
+        final waLink = meta['whatsappGroupLink'] as String? ?? '';
+        await (_db.update(_db.trips)..where((t) => t.id.equals(resolvedTripId)))
+            .write(TripsCompanion(
+          driveFolderId: folderId.isNotEmpty ? Value(folderId) : const Value.absent(),
+          driveFolderLink: folderLink.isNotEmpty ? Value(folderLink) : const Value.absent(),
+          whatsappGroupLink: waLink.isNotEmpty ? Value(waLink) : const Value.absent(),
+        ));
+      }
     }
 
     return getTrip(resolvedTripId);

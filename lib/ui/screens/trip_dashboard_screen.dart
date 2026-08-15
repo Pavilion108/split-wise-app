@@ -2,12 +2,14 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
 import '../../core/sync/invite_code.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
 import '../../services/upi_launcher.dart';
+import '../widgets/responsive_layout.dart';
 import 'add_expense_screen.dart';
 import 'member_screen.dart';
 
@@ -33,6 +35,7 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
   Widget build(BuildContext context) {
     final repo = ref.watch(tripRepositoryProvider);
     final balanceAsync = ref.watch(tripBalanceProvider(widget.tripId));
+    final isDesktop = ResponsiveLayout.isDesktop(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -78,33 +81,43 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text('$e')),
-                data: (balance) => _buildPage(trip, members, me, balance),
+                data: (balance) => isDesktop
+                    ? _DesktopDashboard(
+                        trip: trip,
+                        members: members,
+                        me: me,
+                        balance: balance,
+                        onRefresh: () => _syncWithCloud(context),
+                      )
+                    : _buildPage(trip, members, me, balance),
               );
             },
           );
         },
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Overview',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Expenses',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.swap_horiz_outlined),
-            selectedIcon: Icon(Icons.swap_horiz),
-            label: 'Payments',
-          ),
-        ],
-      ),
+      bottomNavigationBar: isDesktop
+          ? null
+          : NavigationBar(
+              selectedIndex: _tab,
+              onDestinationSelected: (i) => setState(() => _tab = i),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.dashboard_outlined),
+                  selectedIcon: Icon(Icons.dashboard),
+                  label: 'Overview',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  selectedIcon: Icon(Icons.receipt_long),
+                  label: 'Expenses',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.swap_horiz_outlined),
+                  selectedIcon: Icon(Icons.swap_horiz),
+                  label: 'Payments',
+                ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'add_expense_fab',
         onPressed: () async {
@@ -189,6 +202,138 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
     );
 
     await Share.share(message);
+  }
+}
+
+// --- Desktop Dashboard (side-by-side layout) ---
+
+class _DesktopDashboard extends ConsumerWidget {
+  const _DesktopDashboard({
+    required this.trip,
+    required this.members,
+    required this.me,
+    required this.balance,
+    this.onRefresh,
+  });
+
+  final Trip trip;
+  final List<Member> members;
+  final Member? me;
+  final TripBalance? balance;
+  final VoidCallback? onRefresh;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        // Left panel: Overview + balances
+        Expanded(
+          flex: 3,
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              // Trip info cards row
+              Row(
+                children: [
+                  if (trip.driveFolderLink.isNotEmpty)
+                    Expanded(
+                      child: _InfoCard(
+                        icon: Icons.folder_outlined,
+                        title: 'Drive Folder',
+                        subtitle: 'Photos & receipts',
+                        color: cs.primary,
+                        onTap: () => launchUrl(Uri.parse(trip.driveFolderLink),
+                            mode: LaunchMode.externalApplication),
+                      ),
+                    ),
+                  if (trip.driveFolderLink.isNotEmpty) const SizedBox(width: 12),
+                  if (trip.whatsappGroupLink.isNotEmpty)
+                    Expanded(
+                      child: _InfoCard(
+                        icon: Icons.chat_outlined,
+                        title: 'WhatsApp Group',
+                        subtitle: 'Trip chat',
+                        color: Colors.green,
+                        onTap: () =>
+                            launchUrl(Uri.parse(trip.whatsappGroupLink),
+                                mode: LaunchMode.externalApplication),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _OverviewTab(
+                trip: trip,
+                members: members,
+                me: me,
+                balance: balance,
+                onRefresh: onRefresh,
+              ),
+            ],
+          ),
+        ),
+        // Right panel: Expenses
+        Expanded(
+          flex: 4,
+          child: _ExpensesTab(
+            tripId: trip.id,
+            baseCurrency: trip.baseCurrency,
+            members: members,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(subtitle,
+                        style: TextStyle(
+                            fontSize: 12, color: Theme.of(context).colorScheme.outline)),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                Icon(Icons.open_in_new, size: 16, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

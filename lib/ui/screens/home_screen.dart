@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
+import '../widgets/responsive_layout.dart';
 import 'trip_dashboard_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -24,29 +26,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final trips = ref.watch(tripRepositoryProvider).watchTrips();
+    final isDesktop = ResponsiveLayout.isDesktop(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Split Wise',
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: StreamBuilder<List<Trip>>(
-        stream: trips,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          final list = snapshot.data ?? [];
-          if (list.isEmpty) return const _EmptyState();
-          return ListView.builder(
-            padding: const EdgeInsets.only(bottom: 96, top: 8),
-            itemCount: list.length,
-            itemBuilder: (_, i) => _TripTile(trip: list[i]),
-          );
-        },
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: ResponsiveLayout.contentMaxWidth(context),
+          ),
+          child: StreamBuilder<List<Trip>>(
+            stream: trips,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+              final list = snapshot.data ?? [];
+              if (list.isEmpty) return const _EmptyState();
+              if (isDesktop) {
+                return _DesktopTripGrid(trips: list);
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.only(bottom: 96, top: 8),
+                itemCount: list.length,
+                itemBuilder: (_, i) => _TripTile(trip: list[i]),
+              );
+            },
+          ),
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         destinations: const [
@@ -157,31 +170,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Trip Created!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Share this invite code with your group:'),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Share this invite code with your group:'),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  trip.inviteCode,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 4,
+                      ),
+                ),
               ),
-              child: Text(
-                trip.inviteCode,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 4,
+              const SizedBox(height: 16),
+              if (trip.driveFolderLink.isNotEmpty) ...[
+                const Divider(),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.folder_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    const Text('Drive folder created'),
+                    TextButton(
+                      onPressed: () =>
+                          launchUrl(Uri.parse(trip.driveFolderLink)),
+                      child: const Text('Open'),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+              Text(
+                'Or share via WhatsApp/Gmail',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Or share via WhatsApp/Gmail',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -280,15 +313,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
               if (ctx.mounted) {
                 Navigator.pop(ctx, true);
-                Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => TripDashboardScreen(
-                    tripId: trip.id,
-                    tripName: trip.name,
-                  ),
-                ));
+                _showJoinSuccess(context, ref, trip);
               }
             },
             child: const Text('Join'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showJoinSuccess(BuildContext context, WidgetRef ref, Trip trip) {
+    final hasDrive = trip.driveFolderLink.isNotEmpty;
+    final hasWhatsApp = trip.whatsappGroupLink.isNotEmpty;
+
+    if (!hasDrive && !hasWhatsApp) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) =>
+            TripDashboardScreen(tripId: trip.id, tripName: trip.name),
+      ));
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Joined!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('You\'ve joined "${trip.name}"'),
+            if (hasDrive) ...[
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: const Text('Drive Folder'),
+                subtitle: const Text('Photos & receipts'),
+                trailing: const Icon(Icons.open_in_new, size: 18),
+                onTap: () =>
+                    launchUrl(Uri.parse(trip.driveFolderLink)),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+            if (hasWhatsApp) ...[
+              ListTile(
+                leading: const Icon(Icons.chat_outlined,
+                    color: Colors.green),
+                title: const Text('WhatsApp Group'),
+                subtitle: const Text('Trip chat'),
+                trailing: const Icon(Icons.open_in_new, size: 18),
+                onTap: () =>
+                    launchUrl(Uri.parse(trip.whatsappGroupLink)),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) =>
+                    TripDashboardScreen(tripId: trip.id, tripName: trip.name),
+              ));
+            },
+            child: const Text('Open Trip'),
           ),
         ],
       ),
@@ -319,6 +409,92 @@ class _TripTile extends StatelessWidget {
           builder: (_) =>
               TripDashboardScreen(tripId: trip.id, tripName: trip.name),
         )),
+      ),
+    );
+  }
+}
+
+class _DesktopTripGrid extends StatelessWidget {
+  const _DesktopTripGrid({required this.trips});
+  final List<Trip> trips;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 400,
+        childAspectRatio: 2.5,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: trips.length,
+      itemBuilder: (_, i) => _TripCard(trip: trips[i]),
+    );
+  }
+}
+
+class _TripCard extends StatelessWidget {
+  const _TripCard({required this.trip});
+  final Trip trip;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) =>
+              TripDashboardScreen(tripId: trip.id, tripName: trip.name),
+        )),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: cs.primary,
+                radius: 24,
+                child: Text(
+                  trip.name.isNotEmpty ? trip.name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(trip.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 16)),
+                    const SizedBox(height: 4),
+                    Text(trip.baseCurrency,
+                        style: TextStyle(color: cs.outline, fontSize: 13)),
+                    if (trip.driveFolderLink.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.folder_outlined,
+                              size: 14, color: cs.primary),
+                          const SizedBox(width: 4),
+                          Text('Drive',
+                              style:
+                                  TextStyle(fontSize: 12, color: cs.primary)),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: cs.outline),
+            ],
+          ),
+        ),
       ),
     );
   }

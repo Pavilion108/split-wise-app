@@ -50,6 +50,43 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _driveFolderIdMeta = const VerificationMeta(
+    'driveFolderId',
+  );
+  @override
+  late final GeneratedColumn<String> driveFolderId = GeneratedColumn<String>(
+    'drive_folder_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _driveFolderLinkMeta = const VerificationMeta(
+    'driveFolderLink',
+  );
+  @override
+  late final GeneratedColumn<String> driveFolderLink = GeneratedColumn<String>(
+    'drive_folder_link',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _whatsappGroupLinkMeta = const VerificationMeta(
+    'whatsappGroupLink',
+  );
+  @override
+  late final GeneratedColumn<String> whatsappGroupLink =
+      GeneratedColumn<String>(
+        'whatsapp_group_link',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
   static const VerificationMeta _deletedMeta = const VerificationMeta(
     'deleted',
   );
@@ -82,6 +119,9 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     name,
     baseCurrency,
     inviteCode,
+    driveFolderId,
+    driveFolderLink,
+    whatsappGroupLink,
     deleted,
     createdAt,
   ];
@@ -125,6 +165,33 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         inviteCode.isAcceptableOrUnknown(data['invite_code']!, _inviteCodeMeta),
       );
     }
+    if (data.containsKey('drive_folder_id')) {
+      context.handle(
+        _driveFolderIdMeta,
+        driveFolderId.isAcceptableOrUnknown(
+          data['drive_folder_id']!,
+          _driveFolderIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('drive_folder_link')) {
+      context.handle(
+        _driveFolderLinkMeta,
+        driveFolderLink.isAcceptableOrUnknown(
+          data['drive_folder_link']!,
+          _driveFolderLinkMeta,
+        ),
+      );
+    }
+    if (data.containsKey('whatsapp_group_link')) {
+      context.handle(
+        _whatsappGroupLinkMeta,
+        whatsappGroupLink.isAcceptableOrUnknown(
+          data['whatsapp_group_link']!,
+          _whatsappGroupLinkMeta,
+        ),
+      );
+    }
     if (data.containsKey('deleted')) {
       context.handle(
         _deletedMeta,
@@ -164,6 +231,18 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         DriftSqlType.string,
         data['${effectivePrefix}invite_code'],
       )!,
+      driveFolderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}drive_folder_id'],
+      )!,
+      driveFolderLink: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}drive_folder_link'],
+      )!,
+      whatsappGroupLink: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}whatsapp_group_link'],
+      )!,
       deleted: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}deleted'],
@@ -188,6 +267,15 @@ class TripRow extends DataClass implements Insertable<TripRow> {
 
   /// 6-char invite code for sharing via WhatsApp/Gmail.
   final String inviteCode;
+
+  /// Google Drive folder ID for this trip's photos/receipts.
+  final String driveFolderId;
+
+  /// Google Drive web link (for sharing with members).
+  final String driveFolderLink;
+
+  /// WhatsApp group invite link.
+  final String whatsappGroupLink;
   final bool deleted;
   final DateTime createdAt;
   const TripRow({
@@ -195,6 +283,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     required this.name,
     required this.baseCurrency,
     required this.inviteCode,
+    required this.driveFolderId,
+    required this.driveFolderLink,
+    required this.whatsappGroupLink,
     required this.deleted,
     required this.createdAt,
   });
@@ -205,6 +296,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     map['name'] = Variable<String>(name);
     map['base_currency'] = Variable<String>(baseCurrency);
     map['invite_code'] = Variable<String>(inviteCode);
+    map['drive_folder_id'] = Variable<String>(driveFolderId);
+    map['drive_folder_link'] = Variable<String>(driveFolderLink);
+    map['whatsapp_group_link'] = Variable<String>(whatsappGroupLink);
     map['deleted'] = Variable<bool>(deleted);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -216,6 +310,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       name: Value(name),
       baseCurrency: Value(baseCurrency),
       inviteCode: Value(inviteCode),
+      driveFolderId: Value(driveFolderId),
+      driveFolderLink: Value(driveFolderLink),
+      whatsappGroupLink: Value(whatsappGroupLink),
       deleted: Value(deleted),
       createdAt: Value(createdAt),
     );
@@ -231,6 +328,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       name: serializer.fromJson<String>(json['name']),
       baseCurrency: serializer.fromJson<String>(json['baseCurrency']),
       inviteCode: serializer.fromJson<String>(json['inviteCode']),
+      driveFolderId: serializer.fromJson<String>(json['driveFolderId']),
+      driveFolderLink: serializer.fromJson<String>(json['driveFolderLink']),
+      whatsappGroupLink: serializer.fromJson<String>(json['whatsappGroupLink']),
       deleted: serializer.fromJson<bool>(json['deleted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -243,6 +343,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       'name': serializer.toJson<String>(name),
       'baseCurrency': serializer.toJson<String>(baseCurrency),
       'inviteCode': serializer.toJson<String>(inviteCode),
+      'driveFolderId': serializer.toJson<String>(driveFolderId),
+      'driveFolderLink': serializer.toJson<String>(driveFolderLink),
+      'whatsappGroupLink': serializer.toJson<String>(whatsappGroupLink),
       'deleted': serializer.toJson<bool>(deleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -253,6 +356,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     String? name,
     String? baseCurrency,
     String? inviteCode,
+    String? driveFolderId,
+    String? driveFolderLink,
+    String? whatsappGroupLink,
     bool? deleted,
     DateTime? createdAt,
   }) => TripRow(
@@ -260,6 +366,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     name: name ?? this.name,
     baseCurrency: baseCurrency ?? this.baseCurrency,
     inviteCode: inviteCode ?? this.inviteCode,
+    driveFolderId: driveFolderId ?? this.driveFolderId,
+    driveFolderLink: driveFolderLink ?? this.driveFolderLink,
+    whatsappGroupLink: whatsappGroupLink ?? this.whatsappGroupLink,
     deleted: deleted ?? this.deleted,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -273,6 +382,15 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       inviteCode: data.inviteCode.present
           ? data.inviteCode.value
           : this.inviteCode,
+      driveFolderId: data.driveFolderId.present
+          ? data.driveFolderId.value
+          : this.driveFolderId,
+      driveFolderLink: data.driveFolderLink.present
+          ? data.driveFolderLink.value
+          : this.driveFolderLink,
+      whatsappGroupLink: data.whatsappGroupLink.present
+          ? data.whatsappGroupLink.value
+          : this.whatsappGroupLink,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -285,6 +403,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           ..write('name: $name, ')
           ..write('baseCurrency: $baseCurrency, ')
           ..write('inviteCode: $inviteCode, ')
+          ..write('driveFolderId: $driveFolderId, ')
+          ..write('driveFolderLink: $driveFolderLink, ')
+          ..write('whatsappGroupLink: $whatsappGroupLink, ')
           ..write('deleted: $deleted, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -292,8 +413,17 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, baseCurrency, inviteCode, deleted, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    baseCurrency,
+    inviteCode,
+    driveFolderId,
+    driveFolderLink,
+    whatsappGroupLink,
+    deleted,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -302,6 +432,9 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           other.name == this.name &&
           other.baseCurrency == this.baseCurrency &&
           other.inviteCode == this.inviteCode &&
+          other.driveFolderId == this.driveFolderId &&
+          other.driveFolderLink == this.driveFolderLink &&
+          other.whatsappGroupLink == this.whatsappGroupLink &&
           other.deleted == this.deleted &&
           other.createdAt == this.createdAt);
 }
@@ -311,6 +444,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<String> name;
   final Value<String> baseCurrency;
   final Value<String> inviteCode;
+  final Value<String> driveFolderId;
+  final Value<String> driveFolderLink;
+  final Value<String> whatsappGroupLink;
   final Value<bool> deleted;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
@@ -319,6 +455,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     this.name = const Value.absent(),
     this.baseCurrency = const Value.absent(),
     this.inviteCode = const Value.absent(),
+    this.driveFolderId = const Value.absent(),
+    this.driveFolderLink = const Value.absent(),
+    this.whatsappGroupLink = const Value.absent(),
     this.deleted = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -328,6 +467,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     required String name,
     this.baseCurrency = const Value.absent(),
     this.inviteCode = const Value.absent(),
+    this.driveFolderId = const Value.absent(),
+    this.driveFolderLink = const Value.absent(),
+    this.whatsappGroupLink = const Value.absent(),
     this.deleted = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
@@ -339,6 +481,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Expression<String>? name,
     Expression<String>? baseCurrency,
     Expression<String>? inviteCode,
+    Expression<String>? driveFolderId,
+    Expression<String>? driveFolderLink,
+    Expression<String>? whatsappGroupLink,
     Expression<bool>? deleted,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
@@ -348,6 +493,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       if (name != null) 'name': name,
       if (baseCurrency != null) 'base_currency': baseCurrency,
       if (inviteCode != null) 'invite_code': inviteCode,
+      if (driveFolderId != null) 'drive_folder_id': driveFolderId,
+      if (driveFolderLink != null) 'drive_folder_link': driveFolderLink,
+      if (whatsappGroupLink != null) 'whatsapp_group_link': whatsappGroupLink,
       if (deleted != null) 'deleted': deleted,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -359,6 +507,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Value<String>? name,
     Value<String>? baseCurrency,
     Value<String>? inviteCode,
+    Value<String>? driveFolderId,
+    Value<String>? driveFolderLink,
+    Value<String>? whatsappGroupLink,
     Value<bool>? deleted,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
@@ -368,6 +519,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       name: name ?? this.name,
       baseCurrency: baseCurrency ?? this.baseCurrency,
       inviteCode: inviteCode ?? this.inviteCode,
+      driveFolderId: driveFolderId ?? this.driveFolderId,
+      driveFolderLink: driveFolderLink ?? this.driveFolderLink,
+      whatsappGroupLink: whatsappGroupLink ?? this.whatsappGroupLink,
       deleted: deleted ?? this.deleted,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -389,6 +543,15 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     if (inviteCode.present) {
       map['invite_code'] = Variable<String>(inviteCode.value);
     }
+    if (driveFolderId.present) {
+      map['drive_folder_id'] = Variable<String>(driveFolderId.value);
+    }
+    if (driveFolderLink.present) {
+      map['drive_folder_link'] = Variable<String>(driveFolderLink.value);
+    }
+    if (whatsappGroupLink.present) {
+      map['whatsapp_group_link'] = Variable<String>(whatsappGroupLink.value);
+    }
     if (deleted.present) {
       map['deleted'] = Variable<bool>(deleted.value);
     }
@@ -408,6 +571,9 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
           ..write('name: $name, ')
           ..write('baseCurrency: $baseCurrency, ')
           ..write('inviteCode: $inviteCode, ')
+          ..write('driveFolderId: $driveFolderId, ')
+          ..write('driveFolderLink: $driveFolderLink, ')
+          ..write('whatsappGroupLink: $whatsappGroupLink, ')
           ..write('deleted: $deleted, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -3948,6 +4114,9 @@ typedef $$TripsTableCreateCompanionBuilder = TripsCompanion Function({
   required String name,
   Value<String> baseCurrency,
   Value<String> inviteCode,
+  Value<String> driveFolderId,
+  Value<String> driveFolderLink,
+  Value<String> whatsappGroupLink,
   Value<bool> deleted,
   required DateTime createdAt,
   Value<int> rowid,
@@ -3957,6 +4126,9 @@ typedef $$TripsTableUpdateCompanionBuilder = TripsCompanion Function({
   Value<String> name,
   Value<String> baseCurrency,
   Value<String> inviteCode,
+  Value<String> driveFolderId,
+  Value<String> driveFolderLink,
+  Value<String> whatsappGroupLink,
   Value<bool> deleted,
   Value<DateTime> createdAt,
   Value<int> rowid,
@@ -4065,6 +4237,21 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
 
   ColumnFilters<String> get inviteCode => $composableBuilder(
     column: $table.inviteCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get driveFolderId => $composableBuilder(
+    column: $table.driveFolderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get driveFolderLink => $composableBuilder(
+    column: $table.driveFolderLink,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get whatsappGroupLink => $composableBuilder(
+    column: $table.whatsappGroupLink,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4208,6 +4395,21 @@ class $$TripsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get driveFolderId => $composableBuilder(
+    column: $table.driveFolderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get driveFolderLink => $composableBuilder(
+    column: $table.driveFolderLink,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get whatsappGroupLink => $composableBuilder(
+    column: $table.whatsappGroupLink,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get deleted => $composableBuilder(
     column: $table.deleted,
     builder: (column) => ColumnOrderings(column),
@@ -4241,6 +4443,21 @@ class $$TripsTableAnnotationComposer
 
   GeneratedColumn<String> get inviteCode => $composableBuilder(
     column: $table.inviteCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get driveFolderId => $composableBuilder(
+    column: $table.driveFolderId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get driveFolderLink => $composableBuilder(
+    column: $table.driveFolderLink,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get whatsappGroupLink => $composableBuilder(
+    column: $table.whatsappGroupLink,
     builder: (column) => column,
   );
 
@@ -4388,6 +4605,9 @@ class $$TripsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> baseCurrency = const Value.absent(),
                 Value<String> inviteCode = const Value.absent(),
+                Value<String> driveFolderId = const Value.absent(),
+                Value<String> driveFolderLink = const Value.absent(),
+                Value<String> whatsappGroupLink = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4396,6 +4616,9 @@ class $$TripsTableTableManager
                 name: name,
                 baseCurrency: baseCurrency,
                 inviteCode: inviteCode,
+                driveFolderId: driveFolderId,
+                driveFolderLink: driveFolderLink,
+                whatsappGroupLink: whatsappGroupLink,
                 deleted: deleted,
                 createdAt: createdAt,
                 rowid: rowid,
@@ -4406,6 +4629,9 @@ class $$TripsTableTableManager
                 required String name,
                 Value<String> baseCurrency = const Value.absent(),
                 Value<String> inviteCode = const Value.absent(),
+                Value<String> driveFolderId = const Value.absent(),
+                Value<String> driveFolderLink = const Value.absent(),
+                Value<String> whatsappGroupLink = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
@@ -4414,6 +4640,9 @@ class $$TripsTableTableManager
                 name: name,
                 baseCurrency: baseCurrency,
                 inviteCode: inviteCode,
+                driveFolderId: driveFolderId,
+                driveFolderLink: driveFolderLink,
+                whatsappGroupLink: whatsappGroupLink,
                 deleted: deleted,
                 createdAt: createdAt,
                 rowid: rowid,

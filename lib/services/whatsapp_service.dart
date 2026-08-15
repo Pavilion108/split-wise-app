@@ -116,6 +116,25 @@ class WhatsAppService {
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  /// Join an existing WhatsApp group via invite link.
+  Future<bool> joinGroup(String groupLink) async {
+    final uri = Uri.parse(groupLink);
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  /// Build a message to share Drive folder link with members.
+  String buildDriveShareMessage({
+    required String tripName,
+    required String driveLink,
+    required String inviteCode,
+  }) {
+    return '📁 $tripName - Shared Drive Folder\n\n'
+        'Access trip photos and receipts here:\n'
+        '$driveLink\n\n'
+        'Invite code: $inviteCode\n'
+        'Open in Split Wise to track expenses!';
+  }
+
   // --- Message Builders ---
 
   String _buildGroupCreationGuide({

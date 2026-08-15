@@ -56,6 +56,9 @@ class CloudSyncService {
     required String baseCurrency,
     required String inviteCode,
     required DateTime createdAt,
+    String driveFolderId = '',
+    String driveFolderLink = '',
+    String whatsappGroupLink = '',
   }) async {
     final metaRef = _db.ref('trips/$tripId/meta');
     await metaRef.set({
@@ -65,11 +68,31 @@ class CloudSyncService {
       'inviteCode': inviteCode,
       'createdAt': createdAt.toIso8601String(),
       'createdBy': _deviceId,
+      if (driveFolderId.isNotEmpty) 'driveFolderId': driveFolderId,
+      if (driveFolderLink.isNotEmpty) 'driveFolderLink': driveFolderLink,
+      if (whatsappGroupLink.isNotEmpty) 'whatsappGroupLink': whatsappGroupLink,
     });
 
     // Index invite code → tripId for lookup.
     final codeRef = _db.ref('invite_codes/$inviteCode');
     await codeRef.set({'tripId': tripId});
+  }
+
+  /// Update trip metadata (e.g., after Drive folder is created).
+  Future<void> updateTripMeta({
+    required String tripId,
+    Map<String, dynamic> updates = const {},
+  }) async {
+    final metaRef = _db.ref('trips/$tripId/meta');
+    await metaRef.update(updates);
+  }
+
+  /// Pull trip metadata from cloud.
+  Future<Map<String, dynamic>?> pullTripMeta(String tripId) async {
+    final metaRef = _db.ref('trips/$tripId/meta');
+    final snapshot = await metaRef.get();
+    if (!snapshot.exists || snapshot.value == null) return null;
+    return Map<String, dynamic>.from(snapshot.value as Map);
   }
 
   /// Push member info to cloud (called on join).

@@ -134,6 +134,39 @@ class DriveService {
     );
   }
 
+  /// Share a folder with an email address.
+  Future<void> shareFolderWith({
+    required String folderId,
+    required String email,
+    String role = 'reader',
+  }) async {
+    final api = await _getDriveApi();
+    if (api == null) return;
+
+    final permission = drive.Permission()
+      ..type = 'user'
+      ..role = role
+      ..emailAddress = email;
+
+    await api.permissions.create(
+      permission,
+      folderId,
+      sendNotificationEmail: false,
+    );
+  }
+
+  /// Get a shareable link for a folder.
+  Future<String> getShareableLink(String folderId) async {
+    final api = await _getDriveApi();
+    if (api == null) return '';
+
+    final file = await api.files.get(
+      folderId,
+      $fields: 'webViewLink',
+    ) as drive.File;
+    return file.webViewLink ?? '';
+  }
+
   /// List files in a folder.
   Future<List<DriveFile>> listFiles(String folderId) async {
     final api = await _getDriveApi();
