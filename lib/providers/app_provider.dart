@@ -72,9 +72,11 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 });
 
 final cloudSyncProvider = Provider<CloudSyncService>((ref) {
+  final auth = ref.watch(authServiceProvider);
   return CloudSyncService(
     ref.read(syncServiceProvider),
     ref.read(deviceIdentityProvider).id,
+    auth.currentUser?.id,
   );
 });
 

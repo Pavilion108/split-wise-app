@@ -8,11 +8,23 @@ import '../../models/models.dart';
 import '../../providers/app_provider.dart';
 import 'trip_dashboard_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Intelligently restore any trips from the cloud if the local database was wiped
+    Future.microtask(() => ref.read(cloudSyncProvider).restoreTrips());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final trips = ref.watch(tripRepositoryProvider).watchTrips();
 
     return Scaffold(

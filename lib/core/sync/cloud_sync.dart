@@ -13,10 +13,11 @@ import 'sync_service.dart';
 ///   trips/{tripId}/ops     — CRDT op-log (all mutations)
 ///   invite_codes/{code}    — maps invite code → tripId (for lookup)
 class CloudSyncService {
-  CloudSyncService(this._syncService, this._deviceId);
+  CloudSyncService(this._syncService, this._deviceId, [this._userId]);
 
   final SyncService _syncService;
   final String _deviceId;
+  final String? _userId;
 
   final _db = FirebaseDatabase.instance;
   final _statusController = StreamController<CloudSyncStatus>.broadcast();
@@ -87,6 +88,31 @@ class CloudSyncService {
       'deviceId': deviceId,
       'joinedAt': joinedAt.toIso8601String(),
     });
+
+    if (_userId != null) {
+      await _db.ref('users/$_userId/trips/$tripId').set(true);
+    }
+    await _db.ref('devices/$_deviceId/trips/$tripId').set(true);
+  }
+
+  /// Restores all trips this user/device is a member of.
+  Future<int> restoreTrips() async {
+    final refs = <String>[];
+    if (_userId != null) refs.add('users/$_userId/trips');
+    refs.add('devices/$_deviceId/trips');
+
+    int restored = 0;
+    for (final r in refs) {
+      final snap = await _db.ref(r).get();
+      if (snap.exists && snap.value != null) {
+        final map = Map<String, dynamic>.from(snap.value as Map);
+        for (final tripId in map.keys) {
+          final count = await pullAllOps(tripId);
+          if (count > 0) restored++;
+        }
+      }
+    }
+    return restored;
   }
 
   // ---------------------------------------------------------------------------
