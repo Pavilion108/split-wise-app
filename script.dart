@@ -1,0 +1,1 @@
+﻿import 'dart:convert'; import 'dart:io'; void main() async { final res = await HttpClient().getUrl(Uri.parse('https://splitwiser-26-default-rtdb.firebaseio.com/trips/8697c326-f63d-4bc7-98cd-2b09ab1f7f70/meta.json')); final req = await res.close(); final body = await req.transform(utf8.decoder).join(); print(body); }
