@@ -1,6 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+/// Web Client ID from Firebase Console (Google Sign-In provider).
+/// Required by GoogleSignIn.initialize() on Android.
+const _webClientId =
+    '1039809574660-2u0vvsmo8p51er4nobeudbq8148ic26n.apps.googleusercontent.com';
+
 /// Authentication service using Google Sign-In v7.x API.
 /// Provides user identity and Drive access tokens.
 ///
@@ -28,7 +33,9 @@ class AuthService extends ChangeNotifier {
   /// On web: checks Firebase Auth persisted state.
   Future<void> checkSignIn() async {
     try {
-      await _googleSignIn.initialize().timeout(const Duration(seconds: 5));
+      await _googleSignIn
+          .initialize(serverClientId: _webClientId)
+          .timeout(const Duration(seconds: 5));
     } catch (_) {}
 
     // Listen to auth events.
