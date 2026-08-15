@@ -34,14 +34,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(
-          index: _step,
-          children: [
-            _buildWelcomeStep(),
-            _buildGoogleSignInStep(),
-            _buildWhatsAppStep(),
-            _buildCompleteStep(),
-          ],
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: IndexedStack(
+              index: _step,
+              children: [
+                _buildWelcomeStep(),
+                _buildGoogleSignInStep(),
+                _buildWhatsAppStep(),
+                _buildCompleteStep(),
+              ],
+            ),
+          ),
         ),
       ),
     );
