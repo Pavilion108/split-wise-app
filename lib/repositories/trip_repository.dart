@@ -6,13 +6,15 @@ import '../core/sync/cloud_sync.dart';
 import '../core/sync/invite_code.dart';
 import '../core/sync/op_log_service.dart';
 import '../models/models.dart';
+import '../services/drive_service.dart';
 
 class TripRepository {
-  TripRepository(this._db, this._opLog, this._cloudSync);
+  TripRepository(this._db, this._opLog, this._cloudSync, this._driveService);
 
   final AppDatabase _db;
   final OpLogService _opLog;
   final CloudSyncService? _cloudSync;
+  final DriveService? _driveService;
 
   static const _uuid = Uuid();
 
@@ -141,6 +143,17 @@ class TripRepository {
         joinedAt: now,
       );
       await _cloudSync.pushTripOps(tripId);
+    }
+
+    // Create Drive folder for trip (photos, videos, receipts).
+    if (_driveService != null) {
+      try {
+        final tripFolder = await _driveService!.createTripFolder(
+          tripName: name,
+          tripId: tripId,
+        );
+        await _driveService!.createTripSubFolders(tripFolder.folderId);
+      } catch (_) {}
     }
 
     return (await getTrip(tripId))!;

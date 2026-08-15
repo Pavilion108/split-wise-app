@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/constants.dart';
-import '../../core/sync/invite_code.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
 import 'trip_dashboard_screen.dart';
@@ -155,13 +153,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showInviteCode(BuildContext context, WidgetRef ref, Trip trip) {
-    final message = InviteCode.buildWhatsAppMessage(
-      code: trip.inviteCode,
-      tripName: trip.name,
-      creatorName: 'You',
-      baseCurrency: trip.baseCurrency,
-    );
-
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -199,11 +190,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           FilledButton.icon(
             onPressed: () async {
-              await Share.share(message);
+              final whatsapp = ref.read(whatsAppServiceProvider);
+              await whatsapp.createGroup(
+                tripName: trip.name,
+                inviteCode: trip.inviteCode,
+              );
               if (ctx.mounted) Navigator.pop(ctx);
             },
-            icon: const Icon(Icons.share),
-            label: const Text('Share'),
+            icon: const Icon(Icons.chat),
+            label: const Text('Create WhatsApp Group'),
           ),
           FilledButton.tonal(
             onPressed: () {

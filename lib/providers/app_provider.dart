@@ -102,6 +102,7 @@ final tripRepositoryProvider = Provider<TripRepository>((ref) {
     ref.read(databaseProvider),
     ref.read(opLogServiceProvider),
     ref.read(cloudSyncProvider),
+    ref.read(driveServiceProvider),
   );
 });
 
