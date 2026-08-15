@@ -1,4 +1,4 @@
-name: Build and Release Android APK
+name: Build APK & Deploy
 
 on:
   push:
@@ -49,3 +49,16 @@ jobs:
           body: "Automated build from the latest commit."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy APK to web build
+        run: |
+          flutter build web
+          cp build/app/outputs/flutter-apk/app-release.apk build/web/app-release.apk
+
+      - name: Deploy to Firebase Hosting
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          PROJECT_ID: splitwiser-26

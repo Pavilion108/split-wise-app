@@ -3,6 +3,12 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 /// Authentication service using Google Sign-In v7.x API.
 /// Provides user identity and Drive access tokens.
+///
+/// Cross-platform identity:
+/// - Web: Google Sign-In via browser (OAuth2 flow)
+/// - Native: Google Sign-In via device account (auto-detected)
+/// - Both produce the same Firebase Auth UID when using the same Google account
+/// - Firebase RTDB is shared — same user sees same data on web + app
 class AuthService extends ChangeNotifier {
   AuthService() : _googleSignIn = GoogleSignIn.instance;
 
@@ -13,7 +19,13 @@ class AuthService extends ChangeNotifier {
 
   bool get isSignedIn => _currentUser != null;
 
+  /// Whether auto-login was successful (no user interaction needed).
+  bool get wasAutoLogin => _wasAutoLogin;
+  bool _wasAutoLogin = false;
+
   /// Initialize and check if user was previously signed in.
+  /// On native: attempts lightweight auth (detects device Google account).
+  /// On web: checks Firebase Auth persisted state.
   Future<void> checkSignIn() async {
     try {
       await _googleSignIn.initialize().timeout(const Duration(seconds: 5));
@@ -30,7 +42,9 @@ class AuthService extends ChangeNotifier {
       }
     });
 
-    // Try lightweight auth (silent sign-in) — skip on web (needs clientId).
+    // On native: try lightweight auth (silent sign-in from device Google account).
+    // This is the KEY to auto-login — if user is signed into Google on the device,
+    // they're automatically signed into Split Wise without any prompt.
     if (!kIsWeb) {
       try {
         final future = _googleSignIn.attemptLightweightAuthentication();
@@ -39,6 +53,7 @@ class AuthService extends ChangeNotifier {
             : await future.timeout(const Duration(seconds: 5));
         if (account != null) {
           _currentUser = account;
+          _wasAutoLogin = true;
           notifyListeners();
         }
       } catch (_) {}
@@ -46,6 +61,8 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Trigger Google Sign-In flow.
+  /// On native: opens Google account picker (or auto-selects if only one account).
+  /// On web: opens OAuth2 consent screen in browser.
   Future<AuthResult> signIn() async {
     try {
       final account = await _googleSignIn.authenticate();
@@ -75,6 +92,7 @@ class AuthService extends ChangeNotifier {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     _currentUser = null;
+    _wasAutoLogin = false;
     notifyListeners();
   }
 
@@ -91,6 +109,9 @@ class AuthService extends ChangeNotifier {
       return null;
     }
   }
+
+  /// Get the signed-in user's email (for Drive folder sharing).
+  String? get userEmail => _currentUser?.email;
 }
 
 // --- Models ---

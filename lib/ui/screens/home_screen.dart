@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
+import '../../core/platform/platform_detect.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
+import '../widgets/app_install_banner.dart';
 import '../widgets/responsive_layout.dart';
 import 'trip_dashboard_screen.dart';
 
@@ -16,6 +18,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  bool _showInstallBanner = PlatformDetect.isWeb;
+
   @override
   void initState() {
     super.initState();
@@ -33,33 +37,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: const Text('Split Wise',
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: ResponsiveLayout.contentMaxWidth(context),
+      body: Column(
+        children: [
+          if (_showInstallBanner)
+            AppInstallBanner(
+              onDismiss: () => setState(() => _showInstallBanner = false),
+            ),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: ResponsiveLayout.contentMaxWidth(context),
+                ),
+                child: StreamBuilder<List<Trip>>(
+                  stream: trips,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    }
+                    final list = snapshot.data ?? [];
+                    if (list.isEmpty) return const _EmptyState();
+                    if (isDesktop) {
+                      return _DesktopTripGrid(trips: list);
+                    }
+                    return ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 96, top: 8),
+                      itemCount: list.length,
+                      itemBuilder: (_, i) => _TripTile(trip: list[i]),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
-          child: StreamBuilder<List<Trip>>(
-            stream: trips,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-              final list = snapshot.data ?? [];
-              if (list.isEmpty) return const _EmptyState();
-              if (isDesktop) {
-                return _DesktopTripGrid(trips: list);
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.only(bottom: 96, top: 8),
-                itemCount: list.length,
-                itemBuilder: (_, i) => _TripTile(trip: list[i]),
-              );
-            },
-          ),
-        ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         destinations: const [
