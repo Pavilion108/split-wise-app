@@ -10,11 +10,21 @@ import 'providers/app_provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+  }
 
-  final device = await DeviceIdentity.init();
+  DeviceIdentity device;
+  try {
+    device = await DeviceIdentity.init();
+  } catch (e) {
+    debugPrint('DeviceIdentity init failed: $e');
+    device = DeviceIdentity.forTesting('fallback_device');
+  }
 
   runApp(
     ProviderScope(

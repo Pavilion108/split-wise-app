@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
 
 /// WhatsApp integration service.
@@ -10,11 +10,9 @@ import 'package:url_launcher/url_launcher.dart';
 class WhatsAppService {
   /// Check if WhatsApp is installed on the device.
   Future<bool> isWhatsAppInstalled() async {
-    if (Platform.isAndroid || Platform.isIOS) {
-      final uri = Uri.parse('whatsapp://');
-      return canLaunchUrl(uri);
-    }
-    return false;
+    if (kIsWeb) return false; // Deep link check not applicable on web.
+    final uri = Uri.parse('whatsapp://');
+    return canLaunchUrl(uri);
   }
 
   /// Open WhatsApp to create a group with the trip name.
