@@ -4,7 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 /// Web Client ID from Firebase Console (Google Sign-In provider).
 /// Required by GoogleSignIn.initialize() on Android.
 const _webClientId =
-    '1039809574660-2u0vvsmo8p51er4nobeudbq8148ic26n.apps.googleusercontent.com';
+    '612502468471-q85dr65euduai9nnlr6ejh4gk2us4588.apps.googleusercontent.com';
 
 /// Authentication service using Google Sign-In v7.x API.
 /// Provides user identity and Drive access tokens.
