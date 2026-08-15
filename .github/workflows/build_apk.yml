@@ -31,28 +31,28 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Decode keystore
-        if: ${{ env.KEYSTORE_B64 != '' }}
+      - name: Generate keystore and build APK
         env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_B64" | base64 -d > /tmp/release-key.jks
-
-      - name: Build APK
-        env:
-          ANDROID_KEYSTORE_PATH: /tmp/release-key.jks
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: flutter build apk --release
-
-      - name: Print signing info
-        if: ${{ env.KEYSTORE_B64 != '' }}
-        env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: SplitWiser2026!
+          ANDROID_KEY_ALIAS: splitwise
+          ANDROID_KEY_PASSWORD: SplitWiser2026!
         run: |
-          echo "=== SHA-1 FINGERPRINT ==="
-          keytool -list -v -keystore /tmp/release-key.jks -alias ${{ secrets.ANDROID_KEY_ALIAS }} -storepass ${{ secrets.ANDROID_KEYSTORE_PASSWORD }} 2>/dev/null | grep "SHA1:"
+          # Generate a persistent release keystore
+          keytool -genkey -v \
+            -keystore /tmp/release-key.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias splitwise \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -keypass "$ANDROID_KEY_PASSWORD" \
+            -dname "CN=SplitWiser, OU=Dev, O=SplitWiser, L=Pune, ST=MH, C=IN"
+
+          echo "=== SHA-1 FINGERPRINT (add to Firebase Console) ==="
+          keytool -list -v -keystore /tmp/release-key.jks -alias splitwise -storepass "$ANDROID_KEYSTORE_PASSWORD" 2>/dev/null | grep "SHA1:"
           echo "=== END ==="
+
+          # Build APK with this keystore
+          export ANDROID_KEYSTORE_PATH=/tmp/release-key.jks
+          flutter build apk --release
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
