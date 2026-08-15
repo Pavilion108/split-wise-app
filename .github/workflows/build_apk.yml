@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK & Deploy
 
 on:
   push:
@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Android APK
+  build-and-deploy:
+    name: Build APK & Deploy to Firebase Hosting
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -33,8 +33,23 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Upload Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: split-wise-app-release
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Build Web
+        run: flutter build web --release
+
+      - name: Place APK in web build
+        run: cp build/app/outputs/flutter-apk/app-release.apk build/web/split-wise-app
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        if: env.FIREBASE_TOKEN != ''
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: firebase deploy --only hosting --token "$FIREBASE_TOKEN"

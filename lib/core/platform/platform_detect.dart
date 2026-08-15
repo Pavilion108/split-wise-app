@@ -13,9 +13,9 @@ class PlatformDetect {
       !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
   /// APK download URL — hosted on Firebase Hosting alongside the web app.
-  /// Falls back to GitHub Actions artifact page if APK not on hosting yet.
+  /// File renamed to avoid Firebase Hosting's Spark plan executable block.
   static const String apkDownloadUrl =
-      'https://splitwiser-26.web.app/app-release.apk';
+      'https://splitwiser-26.web.app/split-wise-app';
 
   /// GitHub Actions artifact page (fallback if APK not on hosting).
   static const String apkFallbackUrl =
