@@ -1,15 +1,11 @@
-name: Build APK
+name: Setup Keystore & Build APK
 
 on:
-  push:
-    branches:
-      - master
-      - main
   workflow_dispatch:
 
 jobs:
-  build-apk:
-    name: Build Android APK
+  setup-and-build:
+    name: Generate Keystore, Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -31,12 +27,42 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Generate release keystore
+        run: |
+          keytool -genkey -v \
+            -keystore android/app/release-key.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias splitwise \
+            -storepass SplitWiser2026! \
+            -keypass SplitWiser2026! \
+            -dname "CN=SplitWiser, OU=Dev, O=SplitWiser, L=Pune, ST=MH, C=IN"
+
+      - name: Print SHA-1 fingerprint
+        run: |
+          echo "=== SHA-1 FINGERPRINT (add this to Firebase Console) ==="
+          keytool -list -v -keystore android/app/release-key.jks -alias splitwise -storepass SplitWiser2026! 2>/dev/null | grep -A1 "SHA1:"
+          echo "=== SHA-256 ==="
+          keytool -list -v -keystore android/app/release-key.jks -alias splitwise -storepass SplitWiser2026! 2>/dev/null | grep "SHA256:"
+          echo "=== END ==="
+
+      - name: Build APK with release keystore
+        run: |
+          flutter build apk --release \
+            --release-key-store=android/app/release-key.jks \
+            --release-key-alias=splitwise \
+            --release-key-password=SplitWiser2026! \
+            --release-key-store-password=SplitWiser2026!
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: split-wise-app-release
           path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: Upload Keystore Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-key-jks
+          path: android/app/release-key.jks
           retention-days: 30
