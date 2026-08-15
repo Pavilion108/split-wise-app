@@ -11,6 +11,7 @@ jobs:
   build-and-deploy:
     name: Build APK & Deploy to Firebase Hosting
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -40,7 +41,7 @@ jobs:
           path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Build Web
-        run: flutter build web --release
+        run: flutter build web --release --no-tree-shake-icons
 
       - name: Place APK in web build
         run: cp build/app/outputs/flutter-apk/app-release.apk build/web/split-wise-app
