@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
+import '../../ui/widgets/responsive_layout.dart';
 
 class MemberScreen extends ConsumerStatefulWidget {
   const MemberScreen({super.key, required this.tripId});
@@ -28,37 +29,38 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Members')),
-      body: StreamBuilder<List<Member>>(
-        stream: repo.watchMembers(widget.tripId),
-        builder: (context, snapshot) {
-          final list = snapshot.data ?? [];
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _nameCtrl,
-                        textInputAction: TextInputAction.done,
-                        decoration: const InputDecoration(
-                          labelText: 'Member name',
+      body: CenteredBody(
+        child: StreamBuilder<List<Member>>(
+          stream: repo.watchMembers(widget.tripId),
+          builder: (context, snapshot) {
+            final list = snapshot.data ?? [];
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _nameCtrl,
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            labelText: 'Member name',
+                          ),
+                          onSubmitted: (_) => _add(),
                         ),
-                        onSubmitted: (_) => _add(),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: _add,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add'),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        onPressed: _add,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: ListView.separated(
+                Expanded(
+                  child: ListView.separated(
                   itemCount: list.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (_, i) {
@@ -89,6 +91,7 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
             ],
           );
         },
+      ),
       ),
     );
   }

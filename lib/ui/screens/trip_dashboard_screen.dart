@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
 import '../../core/sync/invite_code.dart';
+import '../../core/sync/sync_service.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
+import '../../services/settlement_summary_service.dart';
 import '../../services/upi_launcher.dart';
 import '../widgets/responsive_layout.dart';
 import 'add_expense_screen.dart';
@@ -30,12 +34,31 @@ class TripDashboardScreen extends ConsumerStatefulWidget {
 
 class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
   int _tab = 0;
+  StreamSubscription<SyncEvent>? _syncSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Real-time sync: apply remote ops automatically as they arrive.
+    try {
+      _syncSub =
+          ref.read(cloudSyncProvider).listenForOps(widget.tripId).listen((_) {});
+    } catch (_) {
+      // Auto-sync unavailable (e.g., offline) — manual Sync button still works.
+    }
+  }
+
+  @override
+  void dispose() {
+    _syncSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.watch(tripRepositoryProvider);
     final balanceAsync = ref.watch(tripBalanceProvider(widget.tripId));
-    final isDesktop = ResponsiveLayout.isDesktop(context);
+    final tripAsync = ref.watch(tripStreamProvider(widget.tripId));
+    final membersAsync = ref.watch(membersStreamProvider(widget.tripId));
 
     return Scaffold(
       appBar: AppBar(
@@ -61,66 +84,84 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
               ),
             ),
           ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'More',
+            onSelected: (value) {
+              if (value == 'complete') _confirmMarkComplete(context);
+              if (value == 'summary') _showSummarySheet(context);
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'complete',
+                child: ListTile(
+                  leading: Icon(Icons.check_circle_outline),
+                  title: Text('Mark as Complete'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'summary',
+                child: ListTile(
+                  leading: Icon(Icons.summarize_outlined),
+                  title: Text('Share settlement'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
-      body: StreamBuilder<Trip?>(
-        stream: repo.watchTrip(widget.tripId),
-        builder: (context, tripSnap) {
-          final trip = tripSnap.data;
-          if (trip == null) {
-            return const Center(child: Text('Trip not found'));
-          }
-          return StreamBuilder<List<Member>>(
-            stream: repo.watchMembers(widget.tripId),
-            builder: (context, membersSnap) {
-              final members = membersSnap.data ?? [];
-              final me = members.firstWhereOrNull(
-                (m) => m.deviceId == ref.read(deviceIdentityProvider).id,
-              );
-              return balanceAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('$e')),
-                data: (balance) => isDesktop
-                    ? _DesktopDashboard(
-                        trip: trip,
-                        members: members,
-                        me: me,
-                        balance: balance,
-                        onRefresh: () => _syncWithCloud(context),
-                      )
-                    : _buildPage(trip, members, me, balance),
-              );
-            },
-          );
-        },
-      ),
-      bottomNavigationBar: isDesktop
-          ? null
-          : NavigationBar(
-              selectedIndex: _tab,
-              onDestinationSelected: (i) => setState(() => _tab = i),
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.dashboard_outlined),
-                  selectedIcon: Icon(Icons.dashboard),
-                  label: 'Overview',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.receipt_long_outlined),
-                  selectedIcon: Icon(Icons.receipt_long),
-                  label: 'Expenses',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.swap_horiz_outlined),
-                  selectedIcon: Icon(Icons.swap_horiz),
-                  label: 'Payments',
-                ),
-              ],
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: ResponsiveLayout.contentMaxWidth(context),
+          ),
+          child: balanceAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('$e')),
+            data: (balance) => tripAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('$e')),
+              data: (trip) {
+                if (trip == null) {
+                  return const Center(child: Text('Trip not found'));
+                }
+                final members = membersAsync.value ?? [];
+                final me = members.firstWhereOrNull(
+                  (m) => m.deviceId == ref.read(deviceIdentityProvider).id,
+                );
+                return _buildPage(trip, members, me, balance);
+              },
             ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Overview',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Expenses',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.swap_horiz_outlined),
+            selectedIcon: Icon(Icons.swap_horiz),
+            label: 'Payments',
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'add_expense_fab',
         onPressed: () async {
+          final repo = ref.read(tripRepositoryProvider);
           final trip = await repo.getTrip(widget.tripId);
           if (!mounted || trip == null) return;
           final nav = Navigator.of(context);
@@ -203,134 +244,82 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
 
     await Share.share(message);
   }
-}
 
-// --- Desktop Dashboard (side-by-side layout) ---
+  SettlementSummaryService _summaryService() => SettlementSummaryService(
+        ref.read(tripRepositoryProvider),
+        ref.read(expenseRepositoryProvider),
+        ref.read(whatsAppServiceProvider),
+      );
 
-class _DesktopDashboard extends ConsumerWidget {
-  const _DesktopDashboard({
-    required this.trip,
-    required this.members,
-    required this.me,
-    required this.balance,
-    this.onRefresh,
-  });
+  Future<void> _confirmMarkComplete(BuildContext context) async {
+    final repo = ref.read(tripRepositoryProvider);
+    final trip = await repo.getTrip(widget.tripId);
+    if (trip == null || !mounted) return;
 
-  final Trip trip;
-  final List<Member> members;
-  final Member? me;
-  final TripBalance? balance;
-  final VoidCallback? onRefresh;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Row(
-      children: [
-        // Left panel: Overview + balances
-        Expanded(
-          flex: 3,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              // Trip info cards row
-              Row(
-                children: [
-                  if (trip.driveFolderLink.isNotEmpty)
-                    Expanded(
-                      child: _InfoCard(
-                        icon: Icons.folder_outlined,
-                        title: 'Drive Folder',
-                        subtitle: 'Photos & receipts',
-                        color: cs.primary,
-                        onTap: () => launchUrl(Uri.parse(trip.driveFolderLink),
-                            mode: LaunchMode.externalApplication),
-                      ),
-                    ),
-                  if (trip.driveFolderLink.isNotEmpty) const SizedBox(width: 12),
-                  if (trip.whatsappGroupLink.isNotEmpty)
-                    Expanded(
-                      child: _InfoCard(
-                        icon: Icons.chat_outlined,
-                        title: 'WhatsApp Group',
-                        subtitle: 'Trip chat',
-                        color: Colors.green,
-                        onTap: () =>
-                            launchUrl(Uri.parse(trip.whatsappGroupLink),
-                                mode: LaunchMode.externalApplication),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _OverviewTab(
-                trip: trip,
-                members: members,
-                me: me,
-                balance: balance,
-                onRefresh: onRefresh,
-              ),
-            ],
-          ),
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mark trip as complete?'),
+        content: const Text(
+          'This marks the trip as settled. It stays in your history (with a '
+          '"Completed" badge) and you can still view it anytime. You can then '
+          'share a final settlement summary.',
         ),
-        // Right panel: Expenses
-        Expanded(
-          flex: 4,
-          child: _ExpensesTab(
-            tripId: trip.id,
-            baseCurrency: trip.baseCurrency,
-            members: members,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
-        ),
-      ],
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Complete'),
+          ),
+        ],
+      ),
     );
+
+    if (ok == true) {
+      await repo.markTripComplete(widget.tripId);
+      if (mounted) _showSummarySheet(context);
+    }
   }
-}
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text(subtitle,
-                        style: TextStyle(
-                            fontSize: 12, color: Theme.of(context).colorScheme.outline)),
-                  ],
-                ),
-              ),
-              if (onTap != null)
-                Icon(Icons.open_in_new, size: 16, color: color),
-            ],
-          ),
+  void _showSummarySheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Settlement Summary',
+                style: Theme.of(ctx).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            const Text('Share the final trip settlement with your group.'),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.chat, color: Colors.green),
+              title: const Text('Share to WhatsApp'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _summaryService().shareToWhatsApp(widget.tripId);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf),
+              title: const Text('Download PDF'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final bytes =
+                    await _summaryService().buildPdf(widget.tripId);
+                await Printing.sharePdf(
+                  bytes: bytes,
+                  filename: '${widget.tripName}-settlement.pdf',
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -630,21 +619,13 @@ class _ExpensesTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final expensesStream = ref
-        .read(expenseRepositoryProvider)
-        .watchExpenses(tripId);
+    final expensesAsync = ref.watch(expensesStreamProvider(tripId));
     final byId = {for (final m in members) m.id: m};
 
-    return StreamBuilder<List<Expense>>(
-      stream: expensesStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('${snapshot.error}'));
-        }
-        final expenses = snapshot.data ?? [];
+    return expensesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('$e')),
+      data: (expenses) {
         if (expenses.isEmpty) {
           return const Center(child: Text('No expenses yet'));
         }
@@ -696,21 +677,13 @@ class _PaymentsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settlementsStream = ref
-        .read(expenseRepositoryProvider)
-        .watchSettlements(tripId);
+    final settlementsAsync = ref.watch(settlementsStreamProvider(tripId));
     final byId = {for (final m in members) m.id: m};
 
-    return StreamBuilder<List<Settlement>>(
-      stream: settlementsStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('${snapshot.error}'));
-        }
-        final settlements = snapshot.data ?? [];
+    return settlementsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('$e')),
+      data: (settlements) {
         if (settlements.isEmpty) {
           return const Center(child: Text('No payments recorded'));
         }

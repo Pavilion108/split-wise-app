@@ -118,3 +118,31 @@ Future<T?> showResponsiveDialog<T>({
     builder: builder,
   );
 }
+
+/// Centers content and constrains it to a comfortable max width on large
+/// screens. Fills the available height (so children with [Expanded] work) while
+/// keeping the column horizontally centered. Apply to screen bodies for a
+/// consistent, professional layout.
+class CenteredBody extends StatelessWidget {
+  const CenteredBody({super.key, required this.child, this.padding});
+
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: ResponsiveLayout.contentMaxWidth(context),
+            minHeight: constraints.maxHeight,
+          ),
+          child: padding != null
+              ? Padding(padding: padding!, child: child)
+              : child,
+        ),
+      ),
+    );
+  }
+}
