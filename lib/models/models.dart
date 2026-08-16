@@ -11,6 +11,8 @@ class Trip {
     this.driveFolderLink = '',
     this.whatsappGroupLink = '',
     this.deleted = false,
+    this.status = 'active',
+    this.completedAt,
   });
 
   factory Trip.fromRow(TripRow row) => Trip(
@@ -23,6 +25,8 @@ class Trip {
         driveFolderLink: row.driveFolderLink,
         whatsappGroupLink: row.whatsappGroupLink,
         deleted: row.deleted,
+        status: row.status,
+        completedAt: row.completedAt,
       );
 
   final String id;
@@ -34,6 +38,8 @@ class Trip {
   final String driveFolderLink;
   final String whatsappGroupLink;
   final bool deleted;
+  final String status;
+  final DateTime? completedAt;
 }
 
 class Member {

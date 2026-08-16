@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
+import '../../ui/widgets/responsive_layout.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   const AddExpenseScreen({
@@ -59,18 +60,20 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<Member>>(
-        stream: repo.watchMembers(widget.tripId),
-        builder: (context, membersSnap) {
-          final members = membersSnap.data ?? [];
-          return StreamBuilder<List<Category>>(
-            stream: repo.watchCategories(widget.tripId),
-            builder: (context, catSnap) {
-              final categories = catSnap.data ?? [];
-              return _buildForm(members, categories);
-            },
-          );
-        },
+      body: CenteredBody(
+        child: StreamBuilder<List<Member>>(
+          stream: repo.watchMembers(widget.tripId),
+          builder: (context, membersSnap) {
+            final members = membersSnap.data ?? [];
+            return StreamBuilder<List<Category>>(
+              stream: repo.watchCategories(widget.tripId),
+              builder: (context, catSnap) {
+                final categories = catSnap.data ?? [];
+                return _buildForm(members, categories);
+              },
+            );
+          },
+        ),
       ),
     );
   }

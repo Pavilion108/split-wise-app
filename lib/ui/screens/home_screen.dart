@@ -418,7 +418,13 @@ class _TripTile extends StatelessWidget {
         title: Text(trip.name,
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(trip.baseCurrency),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: trip.status == 'completed'
+            ? const Chip(
+                label: Text('Completed'),
+                avatar: Icon(Icons.check_circle, size: 16),
+                visualDensity: VisualDensity.compact,
+              )
+            : const Icon(Icons.chevron_right),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) =>
               TripDashboardScreen(tripId: trip.id, tripName: trip.name),
@@ -487,9 +493,20 @@ class _TripCard extends StatelessWidget {
                         style: const TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 16)),
                     const SizedBox(height: 4),
-                    Text(trip.baseCurrency,
-                        style: TextStyle(color: cs.outline, fontSize: 13)),
-                    if (trip.driveFolderLink.isNotEmpty) ...[
+                     Text(trip.baseCurrency,
+                         style: TextStyle(color: cs.outline, fontSize: 13)),
+                     if (trip.status == 'completed')
+                       Row(
+                         children: [
+                           Icon(Icons.check_circle,
+                               size: 14, color: Colors.green[700]),
+                           const SizedBox(width: 4),
+                           Text('Completed',
+                               style: TextStyle(
+                                   fontSize: 12, color: Colors.green[700])),
+                         ],
+                       )
+                     else if (trip.driveFolderLink.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Row(
                         children: [

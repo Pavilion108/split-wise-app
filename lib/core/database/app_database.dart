@@ -20,6 +20,10 @@ class Trips extends Table {
   /// WhatsApp group invite link.
   TextColumn get whatsappGroupLink => text().withDefault(const Constant(''))();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+  /// Trip lifecycle status: 'active' or 'completed'.
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  /// Timestamp when the trip was marked completed (null while active).
+  DateTimeColumn get completedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
   @override
@@ -142,7 +146,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -151,12 +155,10 @@ class AppDatabase extends _$AppDatabase {
           await _seedDefaultCategories();
         },
         onUpgrade: (m, from, to) async {
-          // Fresh rebuild for development.
-          for (final table in allTables) {
-            await m.deleteTable(table.actualTableName);
+          if (from < 5) {
+            await m.addColumn(trips, trips.status);
+            await m.addColumn(trips, trips.completedAt);
           }
-          await m.createAll();
-          await _seedDefaultCategories();
         },
       );
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -128,23 +130,60 @@ final dailyBriefServiceProvider = Provider<DailyBriefService>((ref) {
 // --- Balance ---
 
 final tripBalanceStreamProvider =
-    StreamProvider.family<TripBalance, String>((ref, tripId) async* {
+    StreamProvider.family<TripBalance, String>((ref, tripId) {
   final repo = ref.read(expenseRepositoryProvider);
   final tripRepo = ref.read(tripRepositoryProvider);
-
-  await for (final _ in Stream.periodic(const Duration(milliseconds: 200))) {
-    final members = await tripRepo.watchMembers(tripId).first;
-    final expenses = await repo.watchExpenses(tripId).first;
-    final splits = await repo.watchSplits(tripId).first;
-    final settlements = await repo.watchSettlements(tripId).first;
-    yield computeBalance(
-      expenses: expenses,
-      splits: splits,
-      settlements: settlements,
-      members: members,
-    );
-  }
+  return _balanceStream(tripRepo, repo, tripId);
 });
+
+/// Combines the underlying watch streams and recomputes the balance only
+/// when the underlying data actually changes (no polling → no flicker).
+Stream<TripBalance> _balanceStream(
+  TripRepository tripRepo,
+  ExpenseRepository repo,
+  String tripId,
+) {
+  final controller = StreamController<TripBalance>();
+  List<Member>? m;
+  List<Expense>? e;
+  List<Split>? s;
+  List<Settlement>? st;
+  final subs = <StreamSubscription>[];
+
+  void emitIfReady() {
+    if (m != null && e != null && s != null && st != null) {
+      controller.add(computeBalance(
+        expenses: e!,
+        splits: s!,
+        settlements: st!,
+        members: m!,
+      ));
+    }
+  }
+
+  subs.add(tripRepo.watchMembers(tripId).listen((v) {
+    m = v;
+    emitIfReady();
+  }));
+  subs.add(repo.watchExpenses(tripId).listen((v) {
+    e = v;
+    emitIfReady();
+  }));
+  subs.add(repo.watchSplits(tripId).listen((v) {
+    s = v;
+    emitIfReady();
+  }));
+  subs.add(repo.watchSettlements(tripId).listen((v) {
+    st = v;
+    emitIfReady();
+  }));
+
+  controller.onCancel = () {
+    for (final sub in subs) sub.cancel();
+  };
+
+  return controller.stream;
+}
 
 final tripBalanceProvider =
     Provider.family<AsyncValue<TripBalance?>, String>((ref, tripId) {
@@ -154,5 +193,32 @@ final tripBalanceProvider =
     error: (e, st) => AsyncError(e, st),
     data: (b) => AsyncData(b),
   );
+});
+
+// Stable stream providers — Riverpod keeps the subscription alive across widget
+// rebuilds, so consumers (e.g. the Expenses/Payments tabs) don't re-subscribe
+// and flash a loading state when the parent rebuilds.
+
+final tripStreamProvider = StreamProvider.family<Trip?, String>((ref, tripId) {
+  final repo = ref.read(tripRepositoryProvider);
+  return repo.watchTrip(tripId);
+});
+
+final membersStreamProvider =
+    StreamProvider.family<List<Member>, String>((ref, tripId) {
+  final repo = ref.read(tripRepositoryProvider);
+  return repo.watchMembers(tripId);
+});
+
+final expensesStreamProvider =
+    StreamProvider.family<List<Expense>, String>((ref, tripId) {
+  final repo = ref.read(expenseRepositoryProvider);
+  return repo.watchExpenses(tripId);
+});
+
+final settlementsStreamProvider =
+    StreamProvider.family<List<Settlement>, String>((ref, tripId) {
+  final repo = ref.read(expenseRepositoryProvider);
+  return repo.watchSettlements(tripId);
 });
 

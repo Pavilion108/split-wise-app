@@ -23,7 +23,10 @@ class TripRepository {
   Stream<List<Trip>> watchTrips() {
     return (_db.select(_db.trips)
           ..where((t) => t.deleted.equals(false))
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.status),
+            (t) => OrderingTerm.desc(t.createdAt),
+          ]))
         .watch()
         .map((rows) => rows.map(Trip.fromRow).toList());
   }
@@ -40,6 +43,40 @@ class TripRepository {
           ..where((t) => t.id.equals(id)))
         .watchSingleOrNull()
         .map((r) => r == null ? null : Trip.fromRow(r));
+  }
+
+  /// Mark a trip as completed. Updates local DB, records a sync op, and
+  /// pushes the new status to the cloud so all devices see it.
+  Future<void> markTripComplete(String tripId) async {
+    final now = DateTime.now();
+    await _db.transaction(() async {
+      await (_db.update(_db.trips)..where((t) => t.id.equals(tripId)))
+          .write(TripsCompanion(
+        status: const Value('completed'),
+        completedAt: Value(now),
+      ));
+      await _opLog.append(
+        tripId: tripId,
+        opType: 'trip_status',
+        entityId: tripId,
+        payload: {
+          'id': tripId,
+          'status': 'completed',
+          'completedAt': now.toIso8601String(),
+        },
+      );
+    });
+
+    if (_cloudSync != null) {
+      await _cloudSync.updateTripMeta(
+        tripId: tripId,
+        updates: {
+          'status': 'completed',
+          'completedAt': now.toIso8601String(),
+        },
+      );
+      await _cloudSync.pushTripOps(tripId);
+    }
   }
 
   // --- Members ---

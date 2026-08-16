@@ -102,6 +102,27 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -123,6 +144,8 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
     driveFolderLink,
     whatsappGroupLink,
     deleted,
+    status,
+    completedAt,
     createdAt,
   ];
   @override
@@ -198,6 +221,21 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
       );
     }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -247,6 +285,14 @@ class $TripsTable extends Trips with TableInfo<$TripsTable, TripRow> {
         DriftSqlType.bool,
         data['${effectivePrefix}deleted'],
       )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -277,6 +323,12 @@ class TripRow extends DataClass implements Insertable<TripRow> {
   /// WhatsApp group invite link.
   final String whatsappGroupLink;
   final bool deleted;
+
+  /// Trip lifecycle status: 'active' or 'completed'.
+  final String status;
+
+  /// Timestamp when the trip was marked completed (null while active).
+  final DateTime? completedAt;
   final DateTime createdAt;
   const TripRow({
     required this.id,
@@ -287,6 +339,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     required this.driveFolderLink,
     required this.whatsappGroupLink,
     required this.deleted,
+    required this.status,
+    this.completedAt,
     required this.createdAt,
   });
   @override
@@ -300,6 +354,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     map['drive_folder_link'] = Variable<String>(driveFolderLink);
     map['whatsapp_group_link'] = Variable<String>(whatsappGroupLink);
     map['deleted'] = Variable<bool>(deleted);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -314,6 +372,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       driveFolderLink: Value(driveFolderLink),
       whatsappGroupLink: Value(whatsappGroupLink),
       deleted: Value(deleted),
+      status: Value(status),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
       createdAt: Value(createdAt),
     );
   }
@@ -332,6 +394,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       driveFolderLink: serializer.fromJson<String>(json['driveFolderLink']),
       whatsappGroupLink: serializer.fromJson<String>(json['whatsappGroupLink']),
       deleted: serializer.fromJson<bool>(json['deleted']),
+      status: serializer.fromJson<String>(json['status']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -347,6 +411,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
       'driveFolderLink': serializer.toJson<String>(driveFolderLink),
       'whatsappGroupLink': serializer.toJson<String>(whatsappGroupLink),
       'deleted': serializer.toJson<bool>(deleted),
+      'status': serializer.toJson<String>(status),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -360,6 +426,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     String? driveFolderLink,
     String? whatsappGroupLink,
     bool? deleted,
+    String? status,
+    Value<DateTime?> completedAt = const Value.absent(),
     DateTime? createdAt,
   }) => TripRow(
     id: id ?? this.id,
@@ -370,6 +438,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     driveFolderLink: driveFolderLink ?? this.driveFolderLink,
     whatsappGroupLink: whatsappGroupLink ?? this.whatsappGroupLink,
     deleted: deleted ?? this.deleted,
+    status: status ?? this.status,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
     createdAt: createdAt ?? this.createdAt,
   );
   TripRow copyWithCompanion(TripsCompanion data) {
@@ -392,6 +462,10 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           ? data.whatsappGroupLink.value
           : this.whatsappGroupLink,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      status: data.status.present ? data.status.value : this.status,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -407,6 +481,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           ..write('driveFolderLink: $driveFolderLink, ')
           ..write('whatsappGroupLink: $whatsappGroupLink, ')
           ..write('deleted: $deleted, ')
+          ..write('status: $status, ')
+          ..write('completedAt: $completedAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -422,6 +498,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
     driveFolderLink,
     whatsappGroupLink,
     deleted,
+    status,
+    completedAt,
     createdAt,
   );
   @override
@@ -436,6 +514,8 @@ class TripRow extends DataClass implements Insertable<TripRow> {
           other.driveFolderLink == this.driveFolderLink &&
           other.whatsappGroupLink == this.whatsappGroupLink &&
           other.deleted == this.deleted &&
+          other.status == this.status &&
+          other.completedAt == this.completedAt &&
           other.createdAt == this.createdAt);
 }
 
@@ -448,6 +528,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
   final Value<String> driveFolderLink;
   final Value<String> whatsappGroupLink;
   final Value<bool> deleted;
+  final Value<String> status;
+  final Value<DateTime?> completedAt;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const TripsCompanion({
@@ -459,6 +541,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     this.driveFolderLink = const Value.absent(),
     this.whatsappGroupLink = const Value.absent(),
     this.deleted = const Value.absent(),
+    this.status = const Value.absent(),
+    this.completedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -471,6 +555,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     this.driveFolderLink = const Value.absent(),
     this.whatsappGroupLink = const Value.absent(),
     this.deleted = const Value.absent(),
+    this.status = const Value.absent(),
+    this.completedAt = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -485,6 +571,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Expression<String>? driveFolderLink,
     Expression<String>? whatsappGroupLink,
     Expression<bool>? deleted,
+    Expression<String>? status,
+    Expression<DateTime>? completedAt,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -497,6 +585,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       if (driveFolderLink != null) 'drive_folder_link': driveFolderLink,
       if (whatsappGroupLink != null) 'whatsapp_group_link': whatsappGroupLink,
       if (deleted != null) 'deleted': deleted,
+      if (status != null) 'status': status,
+      if (completedAt != null) 'completed_at': completedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -511,6 +601,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     Value<String>? driveFolderLink,
     Value<String>? whatsappGroupLink,
     Value<bool>? deleted,
+    Value<String>? status,
+    Value<DateTime?>? completedAt,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -523,6 +615,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
       driveFolderLink: driveFolderLink ?? this.driveFolderLink,
       whatsappGroupLink: whatsappGroupLink ?? this.whatsappGroupLink,
       deleted: deleted ?? this.deleted,
+      status: status ?? this.status,
+      completedAt: completedAt ?? this.completedAt,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -555,6 +649,12 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
     if (deleted.present) {
       map['deleted'] = Variable<bool>(deleted.value);
     }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -575,6 +675,8 @@ class TripsCompanion extends UpdateCompanion<TripRow> {
           ..write('driveFolderLink: $driveFolderLink, ')
           ..write('whatsappGroupLink: $whatsappGroupLink, ')
           ..write('deleted: $deleted, ')
+          ..write('status: $status, ')
+          ..write('completedAt: $completedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -4118,6 +4220,8 @@ typedef $$TripsTableCreateCompanionBuilder = TripsCompanion Function({
   Value<String> driveFolderLink,
   Value<String> whatsappGroupLink,
   Value<bool> deleted,
+  Value<String> status,
+  Value<DateTime?> completedAt,
   required DateTime createdAt,
   Value<int> rowid,
 });
@@ -4130,6 +4234,8 @@ typedef $$TripsTableUpdateCompanionBuilder = TripsCompanion Function({
   Value<String> driveFolderLink,
   Value<String> whatsappGroupLink,
   Value<bool> deleted,
+  Value<String> status,
+  Value<DateTime?> completedAt,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
@@ -4257,6 +4363,16 @@ class $$TripsTableFilterComposer extends Composer<_$AppDatabase, $TripsTable> {
 
   ColumnFilters<bool> get deleted => $composableBuilder(
     column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4415,6 +4531,16 @@ class $$TripsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -4463,6 +4589,14 @@ class $$TripsTableAnnotationComposer
 
   GeneratedColumn<bool> get deleted =>
       $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -4609,6 +4743,8 @@ class $$TripsTableTableManager
                 Value<String> driveFolderLink = const Value.absent(),
                 Value<String> whatsappGroupLink = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TripsCompanion(
@@ -4620,6 +4756,8 @@ class $$TripsTableTableManager
                 driveFolderLink: driveFolderLink,
                 whatsappGroupLink: whatsappGroupLink,
                 deleted: deleted,
+                status: status,
+                completedAt: completedAt,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -4633,6 +4771,8 @@ class $$TripsTableTableManager
                 Value<String> driveFolderLink = const Value.absent(),
                 Value<String> whatsappGroupLink = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => TripsCompanion.insert(
@@ -4644,6 +4784,8 @@ class $$TripsTableTableManager
                 driveFolderLink: driveFolderLink,
                 whatsappGroupLink: whatsappGroupLink,
                 deleted: deleted,
+                status: status,
+                completedAt: completedAt,
                 createdAt: createdAt,
                 rowid: rowid,
               ),

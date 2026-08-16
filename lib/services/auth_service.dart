@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Web Client ID from Firebase Console (Google Sign-In provider).
 /// Required by GoogleSignIn.initialize() on Android.
@@ -28,9 +29,21 @@ class AuthService extends ChangeNotifier {
   bool get wasAutoLogin => _wasAutoLogin;
   bool _wasAutoLogin = false;
 
+  static const _kSignedInFlag = 'splitwise_signed_in';
+
+  Future<void> _setSignedInFlag(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kSignedInFlag, value);
+    } catch (_) {}
+  }
+
   /// Initialize and check if user was previously signed in.
-  /// On native: attempts lightweight auth (detects device Google account).
-  /// On web: checks Firebase Auth persisted state.
+  ///
+  /// IMPORTANT: we never show an account picker on launch. A silent restore is
+  /// only attempted when we already know a session exists (persisted flag), so a
+  /// fresh user just sees the welcome screen until they tap "Sign in with Google".
+  /// Returning users are restored silently and stay signed in until they Log Out.
   Future<void> checkSignIn() async {
     try {
       await _googleSignIn
@@ -49,21 +62,25 @@ class AuthService extends ChangeNotifier {
       }
     });
 
-    // On native: try lightweight auth (silent sign-in from device Google account).
-    // This is the KEY to auto-login — if user is signed into Google on the device,
-    // they're automatically signed into Split Wise without any prompt.
-    if (!kIsWeb) {
-      try {
-        final future = _googleSignIn.attemptLightweightAuthentication();
-        final account = future == null
-            ? null
-            : await future.timeout(const Duration(seconds: 5));
-        if (account != null) {
-          _currentUser = account;
-          _wasAutoLogin = true;
-          notifyListeners();
-        }
-      } catch (_) {}
+    // Only attempt a silent restore if we know a session exists. This avoids
+    // popping the Google account chooser before the user has opted in.
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_kSignedInFlag) != true) return;
+
+    try {
+      final future = _googleSignIn.attemptLightweightAuthentication();
+      final account = future == null
+          ? null
+          : await future.timeout(const Duration(seconds: 5));
+      if (account != null) {
+        _currentUser = account;
+        _wasAutoLogin = true;
+        notifyListeners();
+      } else {
+        await _setSignedInFlag(false);
+      }
+    } catch (_) {
+      await _setSignedInFlag(false);
     }
   }
 
@@ -76,6 +93,7 @@ class AuthService extends ChangeNotifier {
 
       _currentUser = account;
       notifyListeners();
+      await _setSignedInFlag(true);
 
       // Get authorization for Drive scopes.
       final authorization = await account.authorizationClient
@@ -100,6 +118,7 @@ class AuthService extends ChangeNotifier {
     await _googleSignIn.signOut();
     _currentUser = null;
     _wasAutoLogin = false;
+    await _setSignedInFlag(false);
     notifyListeners();
   }
 

@@ -150,6 +150,9 @@ class SyncService {
       case 'category':
         await _applyCategoryOp(tripId, payload);
         break;
+      case 'trip_status':
+        await _applyTripStatusOp(tripId, payload);
+        break;
       case 'expense_deleted':
       case 'member_deleted':
         await _applyDeleteOp(payload);
@@ -250,6 +253,19 @@ class SyncService {
             isDefault: Value(p['isDefault'] == true),
           ));
     }
+  }
+
+  Future<void> _applyTripStatusOp(String tripId, Map<String, dynamic> p) async {
+    final status = p['status'] as String? ?? 'active';
+    final completedAtStr = p['completedAt'] as String?;
+    await (_db.update(_db.trips)..where((t) => t.id.equals(tripId))).write(
+      TripsCompanion(
+        status: Value(status),
+        completedAt: completedAtStr != null
+            ? Value(DateTime.parse(completedAtStr))
+            : const Value.absent(),
+      ),
+    );
   }
 
   Future<void> _applyDeleteOp(Map<String, dynamic> p) async {
