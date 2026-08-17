@@ -138,9 +138,9 @@ class CenteredBody extends StatelessWidget {
             maxWidth: ResponsiveLayout.contentMaxWidth(context),
             minHeight: constraints.maxHeight,
           ),
-          child: padding != null
-              ? Padding(padding: padding!, child: child)
-              : child,
+        child: padding != null
+            ? Padding(padding: padding!, child: child)
+            : child,
         ),
       ),
     );
