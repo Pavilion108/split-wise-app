@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/constants.dart';
 import '../../core/sync/invite_code.dart';
 import '../../core/sync/sync_service.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
+import '../../services/balance_engine.dart';
 import '../../services/settlement_summary_service.dart';
 import '../../services/upi_launcher.dart';
 import '../widgets/responsive_layout.dart';
@@ -90,6 +93,7 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
             onSelected: (value) {
               if (value == 'complete') _confirmMarkComplete(context);
               if (value == 'summary') _showSummarySheet(context);
+              if (value == 'whatsapp') _showWhatsAppGroupDialog(context);
             },
             itemBuilder: (context) => const [
               PopupMenuItem(
@@ -105,6 +109,14 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
                 child: ListTile(
                   leading: Icon(Icons.summarize_outlined),
                   title: Text('Share settlement'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'whatsapp',
+                child: ListTile(
+                  leading: Icon(Icons.group_add_outlined),
+                  title: Text('WhatsApp Group'),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -243,6 +255,85 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
     );
 
     await Share.share(message);
+  }
+
+  Future<void> _showWhatsAppGroupDialog(BuildContext context) async {
+    final repo = ref.read(tripRepositoryProvider);
+    final trip = await repo.getTrip(widget.tripId);
+    if (trip == null || !mounted) return;
+
+    final linkCtrl = TextEditingController(text: trip.whatsappGroupLink);
+    final hasLink = trip.whatsappGroupLink.isNotEmpty;
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('WhatsApp Group'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!hasLink) ...[
+                Text(
+                  'WhatsApp doesn\'t allow apps to create groups '
+                  'automatically. To link your trip group:\n\n'
+                  '1. Open WhatsApp and create a group named '
+                  '"${trip.name}" (or any name).\n'
+                  '2. Tap the group name → Invite link → Copy link.\n'
+                  '3. Paste it below so everyone in the trip can join.',
+                ),
+                const SizedBox(height: 12),
+              ],
+              TextField(
+                controller: linkCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'WhatsApp group invite link',
+                  hintText: 'https://chat.whatsapp.com/...',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          if (hasLink)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                launchUrl(
+                  Uri.parse(trip.whatsappGroupLink),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+              child: const Text('Open group'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final link = linkCtrl.text.trim();
+              if (link.isEmpty) {
+                Navigator.pop(ctx);
+                return;
+              }
+              await repo.setWhatsAppLink(widget.tripId, link);
+              if (mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('WhatsApp group link saved'),
+                  ),
+                );
+              }
+            },
+            child: Text(hasLink ? 'Update link' : 'Save link'),
+          ),
+        ],
+      ),
+    );
   }
 
   SettlementSummaryService _summaryService() => SettlementSummaryService(
@@ -446,17 +537,34 @@ class _OverviewTab extends ConsumerWidget {
                       child: FilledButton.icon(
                         onPressed: () async {
                           if (me == null) return;
-                          final ok = await launchUpi(
-                            payeeName: me!.name,
-                            amount: net.abs(),
-                            note: 'Split Wise settlement',
+                          final transfers = balance == null
+                              ? <SuggestedTransfer>[]
+                              : suggestSettlements(balance!);
+                          final t = transfers.firstWhereOrNull(
+                            (x) => x.from == me!.id,
                           );
-                          if (!ok && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('No UPI app found')),
-                            );
+                          if (t == null) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('No pending payment found'),
+                                ),
+                              );
+                            }
+                            return;
                           }
+                          final payee =
+                              members.firstWhereOrNull((m) => m.id == t.to);
+                          await _payViaUpiAndRecord(
+                            context: context,
+                            ref: ref,
+                            tripId: trip.id,
+                            fromId: me!.id,
+                            toId: t.to,
+                            payeeName: payee?.name ?? '',
+                            amount: t.amount,
+                            baseCurrency: trip.baseCurrency,
+                          );
                         },
                         icon: const Icon(Icons.qr_code_2),
                         label: const Text('Pay via UPI'),
@@ -685,14 +793,56 @@ class _PaymentsTab extends ConsumerWidget {
       error: (e, _) => Center(child: Text('$e')),
       data: (settlements) {
         if (settlements.isEmpty) {
-          return const Center(child: Text('No payments recorded'));
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('No payments recorded'),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () => _showRecordPaymentDialog(
+                  context,
+                  ref,
+                  tripId,
+                  members,
+                  baseCurrency,
+                ),
+                icon: const Icon(Icons.add),
+                label: const Text('Record payment'),
+              ),
+            ],
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 96, top: 8),
-          itemCount: settlements.length,
+          itemCount: settlements.length + 1,
           itemBuilder: (_, i) {
-            final s = settlements[i];
+            if (i == 0) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => _showRecordPaymentDialog(
+                      context,
+                      ref,
+                      tripId,
+                      members,
+                      baseCurrency,
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Record payment'),
+                  ),
+                ),
+              );
+            }
+            final s = settlements[i - 1];
             final isMine = s.toMemberId == myId;
+            final methodLabel = s.method.isNotEmpty
+                ? (s.method == 'upi' ? 'UPI' : s.method.toUpperCase())
+                : 'Payment';
+            final refLabel = s.transactionRef.isNotEmpty
+                ? '  ·  Ref: ${s.transactionRef.substring(0, 8)}'
+                : '';
             return Card(
               child: ListTile(
                 leading: Icon(
@@ -702,10 +852,13 @@ class _PaymentsTab extends ConsumerWidget {
                 title: Text(
                   '${byId[s.fromMemberId]?.name ?? '?'} -> ${byId[s.toMemberId]?.name ?? '?'}',
                 ),
-                subtitle: s.partialRemaining != null
-                    ? Text(
-                        '${formatMoney(s.amount, baseCurrency)}  ${formatMoney(s.partialRemaining!, baseCurrency)} remaining')
-                    : Text(formatMoney(s.amount, baseCurrency)),
+                subtitle: Text(
+                  s.partialRemaining != null
+                      ? '${formatMoney(s.amount, baseCurrency)}  '
+                          '${formatMoney(s.partialRemaining!, baseCurrency)} remaining'
+                          '$refLabel'
+                      : '${formatMoney(s.amount, baseCurrency)}  ·  $methodLabel$refLabel',
+                ),
                 trailing: isMine
                     ? Text(formatMoney(s.amount, baseCurrency),
                         style: TextStyle(
@@ -719,4 +872,199 @@ class _PaymentsTab extends ConsumerWidget {
       },
     );
   }
+}
+
+/// Launch a UPI intent and, after the user confirms, log the settlement.
+///
+/// UPI apps do NOT reliably return a verified transaction status to the caller,
+/// so we never auto-claim success — the user confirms, and we store our own
+/// generated reference id + timestamp for the audit trail.
+Future<void> _payViaUpiAndRecord({
+  required BuildContext context,
+  required WidgetRef ref,
+  required String tripId,
+  required String fromId,
+  required String toId,
+  required String payeeName,
+  required double amount,
+  required String baseCurrency,
+}) async {
+  final refId = const Uuid().v4();
+  final ok = await launchUpi(
+    payeeName: payeeName,
+    amount: amount,
+    note: 'Split Wise settlement $refId',
+  );
+  if (!ok) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No UPI app found')),
+      );
+    }
+    return;
+  }
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Payment successful?'),
+      content: Text(
+        'Did the UPI payment of ${formatMoney(amount, baseCurrency)} '
+        'complete? We can\'t auto-verify it, so please confirm.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Not yet'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Yes, paid'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+
+  await ref.read(expenseRepositoryProvider).addSettlement(
+        tripId: tripId,
+        fromMemberId: fromId,
+        toMemberId: toId,
+        amount: amount,
+        method: 'upi',
+        transactionRef: refId,
+        status: 'paid',
+        verifiedAt: DateTime.now(),
+      );
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Payment logged')),
+    );
+  }
+}
+
+Future<void> _showRecordPaymentDialog(
+  BuildContext context,
+  WidgetRef ref,
+  String tripId,
+  List<Member> members,
+  String baseCurrency,
+) async {
+  if (members.length < 2) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least two members first')),
+      );
+    }
+    return;
+  }
+
+  String fromId = members.first.id;
+  String toId = members.last.id;
+  String method = 'upi';
+  final amountCtrl = TextEditingController();
+
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx2, setState) => AlertDialog(
+        title: const Text('Record payment'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: fromId,
+                decoration: const InputDecoration(labelText: 'Paid by'),
+                items: [
+                  for (final m in members)
+                    DropdownMenuItem(value: m.id, child: Text(m.name)),
+                ],
+                onChanged: (v) => setState(() => fromId = v!),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: toId,
+                decoration: const InputDecoration(labelText: 'Paid to'),
+                items: [
+                  for (final m in members)
+                    DropdownMenuItem(value: m.id, child: Text(m.name)),
+                ],
+                onChanged: (v) => setState(() => toId = v!),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration:
+                    InputDecoration(labelText: 'Amount ($baseCurrency)'),
+              ),
+              const SizedBox(height: 12),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'upi', label: Text('UPI')),
+                  ButtonSegment(value: 'cash', label: Text('Cash')),
+                  ButtonSegment(value: 'other', label: Text('Other')),
+                ],
+                selected: {method},
+                onSelectionChanged: (s) => setState(() => method = s.first),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final amount = double.tryParse(amountCtrl.text.trim());
+              if (amount == null || amount <= 0 || fromId == toId) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                    content: Text('Enter a valid amount and '
+                        'different payer/payee'),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              if (method == 'upi') {
+                final payee =
+                    members.firstWhereOrNull((m) => m.id == toId);
+                await _payViaUpiAndRecord(
+                  context: context,
+                  ref: ref,
+                  tripId: tripId,
+                  fromId: fromId,
+                  toId: toId,
+                  payeeName: payee?.name ?? '',
+                  amount: amount,
+                  baseCurrency: baseCurrency,
+                );
+              } else {
+                await ref.read(expenseRepositoryProvider).addSettlement(
+                      tripId: tripId,
+                      fromMemberId: fromId,
+                      toMemberId: toId,
+                      amount: amount,
+                      method: method,
+                      status: 'paid',
+                      verifiedAt: DateTime.now(),
+                    );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Payment logged')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    ),
+  );
 }

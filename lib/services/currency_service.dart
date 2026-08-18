@@ -1,6 +1,24 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
+import 'package:http/http.dart' as http;
 
 import '../core/database/app_database.dart';
+
+/// Result of a live rate fetch.
+class LiveRate {
+  const LiveRate({
+    required this.rate,
+    required this.source,
+    required this.fetchedAt,
+  });
+
+  /// Rate: 1 unit of [currency] = [rate] units of [baseCurrency].
+  final double rate;
+  /// Human-readable source label (e.g. "Live market rate").
+  final String source;
+  final DateTime fetchedAt;
+}
 
 class CurrencyService {
   CurrencyService(this._db);
@@ -66,5 +84,45 @@ class CurrencyService {
     return (_db.select(_db.rateCaches)
           ..where((r) => r.baseCurrency.equals(baseCurrency)))
         .get();
+  }
+
+  /// Fetch the current market rate from a free, no-key FX source.
+  ///
+  /// The provider name is intentionally NOT surfaced to the user; callers
+  /// should display [LiveRate.source] ("Live market rate") for the audit trail.
+  Future<LiveRate> fetchLiveRate({
+    required String fromCurrency,
+    required String toBase,
+  }) async {
+    if (fromCurrency == toBase) {
+      return LiveRate(
+        rate: 1,
+        source: 'Live market rate',
+        fetchedAt: DateTime.now(),
+      );
+    }
+
+    final uri = Uri.parse(
+      'https://open.er-api.com/v6/latest/$fromCurrency',
+    );
+    final resp = await http
+        .get(uri, headers: {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 12));
+    if (resp.statusCode != 200) {
+      throw Exception('Rate service returned ${resp.statusCode}');
+    }
+
+    final json = jsonDecode(resp.body) as Map<String, dynamic>;
+    final rates = json['rates'] as Map<String, dynamic>?;
+    final rate = (rates?[toBase] as num?)?.toDouble();
+    if (rate == null) {
+      throw Exception('Rate for $toBase unavailable');
+    }
+
+    return LiveRate(
+      rate: rate,
+      source: 'Live market rate',
+      fetchedAt: DateTime.now(),
+    );
   }
 }

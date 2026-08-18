@@ -59,18 +59,32 @@ class ExpenseRepository {
     required List<String> allMemberIds,
     List<String>? subsetIds,
     String note = '',
+    double? rate,
+    String rateSource = 'manual',
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
+
+    if (rate != null && currency != baseCurrency) {
+      await _currency.setRate(
+        baseCurrency: baseCurrency,
+        currency: currency,
+        rate: rate,
+        source: rateSource,
+      );
+    }
+
     final converted = await _currency.convert(
       amount: amount,
       fromCurrency: currency,
       toBase: baseCurrency,
     );
-    final rate = await _currency.getRate(
-      fromCurrency: currency,
-      toBase: baseCurrency,
-    );
+    final usedRate = rate ??
+        await _currency.getRate(
+          fromCurrency: currency,
+          toBase: baseCurrency,
+        ) ??
+        1;
     final splits = computeSplits(
       amount: amount,
       type: splitType,
@@ -87,7 +101,7 @@ class ExpenseRepository {
             amount: amount,
             currency: currency,
             convertedAmount: converted,
-            rateUsed: rate ?? 1,
+            rateUsed: usedRate,
             note: Value(note),
             splitType: Value(splitType),
             createdAt: now,
@@ -145,17 +159,31 @@ class ExpenseRepository {
     required List<String> allMemberIds,
     List<String>? subsetIds,
     String note = '',
+    double? rate,
+    String rateSource = 'manual',
   }) async {
     final now = DateTime.now();
+
+    if (rate != null && currency != baseCurrency) {
+      await _currency.setRate(
+        baseCurrency: baseCurrency,
+        currency: currency,
+        rate: rate,
+        source: rateSource,
+      );
+    }
+
     final converted = await _currency.convert(
       amount: amount,
       fromCurrency: currency,
       toBase: baseCurrency,
     );
-    final rate = await _currency.getRate(
-      fromCurrency: currency,
-      toBase: baseCurrency,
-    );
+    final usedRate = rate ??
+        await _currency.getRate(
+          fromCurrency: currency,
+          toBase: baseCurrency,
+        ) ??
+        1;
     final splits = computeSplits(
       amount: amount,
       type: splitType,
@@ -171,7 +199,7 @@ class ExpenseRepository {
         amount: Value(amount),
         currency: Value(currency),
         convertedAmount: Value(converted),
-        rateUsed: Value(rate ?? 1),
+        rateUsed: Value(usedRate),
         note: Value(note),
         splitType: Value(splitType),
         editedAt: Value(now),
@@ -242,6 +270,10 @@ class ExpenseRepository {
     required double amount,
     double? partialRemaining,
     String note = '',
+    String method = '',
+    String transactionRef = '',
+    String status = 'paid',
+    DateTime? verifiedAt,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
@@ -254,6 +286,10 @@ class ExpenseRepository {
             toMemberId: toMemberId,
             amount: amount,
             partialRemaining: Value(partialRemaining),
+            method: Value(method),
+            transactionRef: Value(transactionRef),
+            status: Value(status),
+            verifiedAt: Value(verifiedAt),
             note: Value(note),
             paidAt: now,
           ));

@@ -2710,6 +2710,49 @@ class $SettlementsTable extends Settlements
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _methodMeta = const VerificationMeta('method');
+  @override
+  late final GeneratedColumn<String> method = GeneratedColumn<String>(
+    'method',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _transactionRefMeta = const VerificationMeta(
+    'transactionRef',
+  );
+  @override
+  late final GeneratedColumn<String> transactionRef = GeneratedColumn<String>(
+    'transaction_ref',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('paid'),
+  );
+  static const VerificationMeta _verifiedAtMeta = const VerificationMeta(
+    'verifiedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> verifiedAt = GeneratedColumn<DateTime>(
+    'verified_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
@@ -2752,6 +2795,10 @@ class $SettlementsTable extends Settlements
     toMemberId,
     amount,
     partialRemaining,
+    method,
+    transactionRef,
+    status,
+    verifiedAt,
     note,
     paidAt,
     deleted,
@@ -2820,6 +2867,33 @@ class $SettlementsTable extends Settlements
         ),
       );
     }
+    if (data.containsKey('method')) {
+      context.handle(
+        _methodMeta,
+        method.isAcceptableOrUnknown(data['method']!, _methodMeta),
+      );
+    }
+    if (data.containsKey('transaction_ref')) {
+      context.handle(
+        _transactionRefMeta,
+        transactionRef.isAcceptableOrUnknown(
+          data['transaction_ref']!,
+          _transactionRefMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('verified_at')) {
+      context.handle(
+        _verifiedAtMeta,
+        verifiedAt.isAcceptableOrUnknown(data['verified_at']!, _verifiedAtMeta),
+      );
+    }
     if (data.containsKey('note')) {
       context.handle(
         _noteMeta,
@@ -2873,6 +2947,22 @@ class $SettlementsTable extends Settlements
         DriftSqlType.double,
         data['${effectivePrefix}partial_remaining'],
       ),
+      method: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}method'],
+      )!,
+      transactionRef: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transaction_ref'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      verifiedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}verified_at'],
+      ),
       note: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}note'],
@@ -2901,6 +2991,18 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
   final String toMemberId;
   final double amount;
   final double? partialRemaining;
+
+  /// Payment method: 'upi', 'cash', 'other' (empty = legacy).
+  final String method;
+
+  /// Provider transaction reference / id (for audit trail).
+  final String transactionRef;
+
+  /// 'paid' or 'pending'.
+  final String status;
+
+  /// When the payment was verified/confirmed.
+  final DateTime? verifiedAt;
   final String note;
   final DateTime paidAt;
   final bool deleted;
@@ -2911,6 +3013,10 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
     required this.toMemberId,
     required this.amount,
     this.partialRemaining,
+    required this.method,
+    required this.transactionRef,
+    required this.status,
+    this.verifiedAt,
     required this.note,
     required this.paidAt,
     required this.deleted,
@@ -2925,6 +3031,12 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
     map['amount'] = Variable<double>(amount);
     if (!nullToAbsent || partialRemaining != null) {
       map['partial_remaining'] = Variable<double>(partialRemaining);
+    }
+    map['method'] = Variable<String>(method);
+    map['transaction_ref'] = Variable<String>(transactionRef);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || verifiedAt != null) {
+      map['verified_at'] = Variable<DateTime>(verifiedAt);
     }
     map['note'] = Variable<String>(note);
     map['paid_at'] = Variable<DateTime>(paidAt);
@@ -2942,6 +3054,12 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
       partialRemaining: partialRemaining == null && nullToAbsent
           ? const Value.absent()
           : Value(partialRemaining),
+      method: Value(method),
+      transactionRef: Value(transactionRef),
+      status: Value(status),
+      verifiedAt: verifiedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(verifiedAt),
       note: Value(note),
       paidAt: Value(paidAt),
       deleted: Value(deleted),
@@ -2960,6 +3078,10 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
       toMemberId: serializer.fromJson<String>(json['toMemberId']),
       amount: serializer.fromJson<double>(json['amount']),
       partialRemaining: serializer.fromJson<double?>(json['partialRemaining']),
+      method: serializer.fromJson<String>(json['method']),
+      transactionRef: serializer.fromJson<String>(json['transactionRef']),
+      status: serializer.fromJson<String>(json['status']),
+      verifiedAt: serializer.fromJson<DateTime?>(json['verifiedAt']),
       note: serializer.fromJson<String>(json['note']),
       paidAt: serializer.fromJson<DateTime>(json['paidAt']),
       deleted: serializer.fromJson<bool>(json['deleted']),
@@ -2975,6 +3097,10 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
       'toMemberId': serializer.toJson<String>(toMemberId),
       'amount': serializer.toJson<double>(amount),
       'partialRemaining': serializer.toJson<double?>(partialRemaining),
+      'method': serializer.toJson<String>(method),
+      'transactionRef': serializer.toJson<String>(transactionRef),
+      'status': serializer.toJson<String>(status),
+      'verifiedAt': serializer.toJson<DateTime?>(verifiedAt),
       'note': serializer.toJson<String>(note),
       'paidAt': serializer.toJson<DateTime>(paidAt),
       'deleted': serializer.toJson<bool>(deleted),
@@ -2988,6 +3114,10 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
     String? toMemberId,
     double? amount,
     Value<double?> partialRemaining = const Value.absent(),
+    String? method,
+    String? transactionRef,
+    String? status,
+    Value<DateTime?> verifiedAt = const Value.absent(),
     String? note,
     DateTime? paidAt,
     bool? deleted,
@@ -3000,6 +3130,10 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
     partialRemaining: partialRemaining.present
         ? partialRemaining.value
         : this.partialRemaining,
+    method: method ?? this.method,
+    transactionRef: transactionRef ?? this.transactionRef,
+    status: status ?? this.status,
+    verifiedAt: verifiedAt.present ? verifiedAt.value : this.verifiedAt,
     note: note ?? this.note,
     paidAt: paidAt ?? this.paidAt,
     deleted: deleted ?? this.deleted,
@@ -3018,6 +3152,14 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
       partialRemaining: data.partialRemaining.present
           ? data.partialRemaining.value
           : this.partialRemaining,
+      method: data.method.present ? data.method.value : this.method,
+      transactionRef: data.transactionRef.present
+          ? data.transactionRef.value
+          : this.transactionRef,
+      status: data.status.present ? data.status.value : this.status,
+      verifiedAt: data.verifiedAt.present
+          ? data.verifiedAt.value
+          : this.verifiedAt,
       note: data.note.present ? data.note.value : this.note,
       paidAt: data.paidAt.present ? data.paidAt.value : this.paidAt,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
@@ -3033,6 +3175,10 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
           ..write('toMemberId: $toMemberId, ')
           ..write('amount: $amount, ')
           ..write('partialRemaining: $partialRemaining, ')
+          ..write('method: $method, ')
+          ..write('transactionRef: $transactionRef, ')
+          ..write('status: $status, ')
+          ..write('verifiedAt: $verifiedAt, ')
           ..write('note: $note, ')
           ..write('paidAt: $paidAt, ')
           ..write('deleted: $deleted')
@@ -3048,6 +3194,10 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
     toMemberId,
     amount,
     partialRemaining,
+    method,
+    transactionRef,
+    status,
+    verifiedAt,
     note,
     paidAt,
     deleted,
@@ -3062,6 +3212,10 @@ class SettlementRow extends DataClass implements Insertable<SettlementRow> {
           other.toMemberId == this.toMemberId &&
           other.amount == this.amount &&
           other.partialRemaining == this.partialRemaining &&
+          other.method == this.method &&
+          other.transactionRef == this.transactionRef &&
+          other.status == this.status &&
+          other.verifiedAt == this.verifiedAt &&
           other.note == this.note &&
           other.paidAt == this.paidAt &&
           other.deleted == this.deleted);
@@ -3074,6 +3228,10 @@ class SettlementsCompanion extends UpdateCompanion<SettlementRow> {
   final Value<String> toMemberId;
   final Value<double> amount;
   final Value<double?> partialRemaining;
+  final Value<String> method;
+  final Value<String> transactionRef;
+  final Value<String> status;
+  final Value<DateTime?> verifiedAt;
   final Value<String> note;
   final Value<DateTime> paidAt;
   final Value<bool> deleted;
@@ -3085,6 +3243,10 @@ class SettlementsCompanion extends UpdateCompanion<SettlementRow> {
     this.toMemberId = const Value.absent(),
     this.amount = const Value.absent(),
     this.partialRemaining = const Value.absent(),
+    this.method = const Value.absent(),
+    this.transactionRef = const Value.absent(),
+    this.status = const Value.absent(),
+    this.verifiedAt = const Value.absent(),
     this.note = const Value.absent(),
     this.paidAt = const Value.absent(),
     this.deleted = const Value.absent(),
@@ -3097,6 +3259,10 @@ class SettlementsCompanion extends UpdateCompanion<SettlementRow> {
     required String toMemberId,
     required double amount,
     this.partialRemaining = const Value.absent(),
+    this.method = const Value.absent(),
+    this.transactionRef = const Value.absent(),
+    this.status = const Value.absent(),
+    this.verifiedAt = const Value.absent(),
     this.note = const Value.absent(),
     required DateTime paidAt,
     this.deleted = const Value.absent(),
@@ -3114,6 +3280,10 @@ class SettlementsCompanion extends UpdateCompanion<SettlementRow> {
     Expression<String>? toMemberId,
     Expression<double>? amount,
     Expression<double>? partialRemaining,
+    Expression<String>? method,
+    Expression<String>? transactionRef,
+    Expression<String>? status,
+    Expression<DateTime>? verifiedAt,
     Expression<String>? note,
     Expression<DateTime>? paidAt,
     Expression<bool>? deleted,
@@ -3126,6 +3296,10 @@ class SettlementsCompanion extends UpdateCompanion<SettlementRow> {
       if (toMemberId != null) 'to_member_id': toMemberId,
       if (amount != null) 'amount': amount,
       if (partialRemaining != null) 'partial_remaining': partialRemaining,
+      if (method != null) 'method': method,
+      if (transactionRef != null) 'transaction_ref': transactionRef,
+      if (status != null) 'status': status,
+      if (verifiedAt != null) 'verified_at': verifiedAt,
       if (note != null) 'note': note,
       if (paidAt != null) 'paid_at': paidAt,
       if (deleted != null) 'deleted': deleted,
@@ -3140,6 +3314,10 @@ class SettlementsCompanion extends UpdateCompanion<SettlementRow> {
     Value<String>? toMemberId,
     Value<double>? amount,
     Value<double?>? partialRemaining,
+    Value<String>? method,
+    Value<String>? transactionRef,
+    Value<String>? status,
+    Value<DateTime?>? verifiedAt,
     Value<String>? note,
     Value<DateTime>? paidAt,
     Value<bool>? deleted,
@@ -3152,6 +3330,10 @@ class SettlementsCompanion extends UpdateCompanion<SettlementRow> {
       toMemberId: toMemberId ?? this.toMemberId,
       amount: amount ?? this.amount,
       partialRemaining: partialRemaining ?? this.partialRemaining,
+      method: method ?? this.method,
+      transactionRef: transactionRef ?? this.transactionRef,
+      status: status ?? this.status,
+      verifiedAt: verifiedAt ?? this.verifiedAt,
       note: note ?? this.note,
       paidAt: paidAt ?? this.paidAt,
       deleted: deleted ?? this.deleted,
@@ -3180,6 +3362,18 @@ class SettlementsCompanion extends UpdateCompanion<SettlementRow> {
     if (partialRemaining.present) {
       map['partial_remaining'] = Variable<double>(partialRemaining.value);
     }
+    if (method.present) {
+      map['method'] = Variable<String>(method.value);
+    }
+    if (transactionRef.present) {
+      map['transaction_ref'] = Variable<String>(transactionRef.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (verifiedAt.present) {
+      map['verified_at'] = Variable<DateTime>(verifiedAt.value);
+    }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
@@ -3204,6 +3398,10 @@ class SettlementsCompanion extends UpdateCompanion<SettlementRow> {
           ..write('toMemberId: $toMemberId, ')
           ..write('amount: $amount, ')
           ..write('partialRemaining: $partialRemaining, ')
+          ..write('method: $method, ')
+          ..write('transactionRef: $transactionRef, ')
+          ..write('status: $status, ')
+          ..write('verifiedAt: $verifiedAt, ')
           ..write('note: $note, ')
           ..write('paidAt: $paidAt, ')
           ..write('deleted: $deleted, ')
@@ -6832,6 +7030,10 @@ typedef $$SettlementsTableCreateCompanionBuilder =
       required String toMemberId,
       required double amount,
       Value<double?> partialRemaining,
+      Value<String> method,
+      Value<String> transactionRef,
+      Value<String> status,
+      Value<DateTime?> verifiedAt,
       Value<String> note,
       required DateTime paidAt,
       Value<bool> deleted,
@@ -6845,6 +7047,10 @@ typedef $$SettlementsTableUpdateCompanionBuilder =
       Value<String> toMemberId,
       Value<double> amount,
       Value<double?> partialRemaining,
+      Value<String> method,
+      Value<String> transactionRef,
+      Value<String> status,
+      Value<DateTime?> verifiedAt,
       Value<String> note,
       Value<DateTime> paidAt,
       Value<bool> deleted,
@@ -6928,6 +7134,26 @@ class $$SettlementsTableFilterComposer
 
   ColumnFilters<double> get partialRemaining => $composableBuilder(
     column: $table.partialRemaining,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get method => $composableBuilder(
+    column: $table.method,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transactionRef => $composableBuilder(
+    column: $table.transactionRef,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get verifiedAt => $composableBuilder(
+    column: $table.verifiedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7040,6 +7266,26 @@ class $$SettlementsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get method => $composableBuilder(
+    column: $table.method,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transactionRef => $composableBuilder(
+    column: $table.transactionRef,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get verifiedAt => $composableBuilder(
+    column: $table.verifiedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get note => $composableBuilder(
     column: $table.note,
     builder: (column) => ColumnOrderings(column),
@@ -7142,6 +7388,22 @@ class $$SettlementsTableAnnotationComposer
 
   GeneratedColumn<double> get partialRemaining => $composableBuilder(
     column: $table.partialRemaining,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get method =>
+      $composableBuilder(column: $table.method, builder: (column) => column);
+
+  GeneratedColumn<String> get transactionRef => $composableBuilder(
+    column: $table.transactionRef,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get verifiedAt => $composableBuilder(
+    column: $table.verifiedAt,
     builder: (column) => column,
   );
 
@@ -7262,6 +7524,10 @@ class $$SettlementsTableTableManager
                 Value<String> toMemberId = const Value.absent(),
                 Value<double> amount = const Value.absent(),
                 Value<double?> partialRemaining = const Value.absent(),
+                Value<String> method = const Value.absent(),
+                Value<String> transactionRef = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> verifiedAt = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 Value<DateTime> paidAt = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
@@ -7273,6 +7539,10 @@ class $$SettlementsTableTableManager
                 toMemberId: toMemberId,
                 amount: amount,
                 partialRemaining: partialRemaining,
+                method: method,
+                transactionRef: transactionRef,
+                status: status,
+                verifiedAt: verifiedAt,
                 note: note,
                 paidAt: paidAt,
                 deleted: deleted,
@@ -7286,6 +7556,10 @@ class $$SettlementsTableTableManager
                 required String toMemberId,
                 required double amount,
                 Value<double?> partialRemaining = const Value.absent(),
+                Value<String> method = const Value.absent(),
+                Value<String> transactionRef = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime?> verifiedAt = const Value.absent(),
                 Value<String> note = const Value.absent(),
                 required DateTime paidAt,
                 Value<bool> deleted = const Value.absent(),
@@ -7297,6 +7571,10 @@ class $$SettlementsTableTableManager
                 toMemberId: toMemberId,
                 amount: amount,
                 partialRemaining: partialRemaining,
+                method: method,
+                transactionRef: transactionRef,
+                status: status,
+                verifiedAt: verifiedAt,
                 note: note,
                 paidAt: paidAt,
                 deleted: deleted,

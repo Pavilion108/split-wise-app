@@ -95,9 +95,17 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
       await _setSignedInFlag(true);
 
-      // Get authorization for Drive scopes.
-      final authorization = await account.authorizationClient
-          .authorizeScopes(['https://www.googleapis.com/auth/drive.file']);
+      // Request Drive scope, but NEVER fail sign-in if it's denied or the
+      // OAuth consent screen hasn't granted it yet. Drive features simply
+      // stay unavailable; the rest of the app works normally.
+      String? driveToken;
+      try {
+        final authorization = await account.authorizationClient
+            .authorizeScopes(['https://www.googleapis.com/auth/drive.file']);
+        driveToken = authorization.accessToken;
+      } catch (_) {
+        driveToken = null;
+      }
 
       return AuthResult.success(
         user: AuthUser(
@@ -106,7 +114,7 @@ class AuthService extends ChangeNotifier {
           displayName: account.displayName ?? '',
           photoUrl: account.photoUrl,
         ),
-        accessToken: authorization.accessToken,
+        accessToken: driveToken,
       );
     } catch (e) {
       return AuthResult.error(e.toString());

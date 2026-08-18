@@ -153,6 +153,9 @@ class SyncService {
       case 'trip_status':
         await _applyTripStatusOp(tripId, payload);
         break;
+      case 'trip_meta':
+        await _applyTripMetaOp(tripId, payload);
+        break;
       case 'expense_deleted':
       case 'member_deleted':
         await _applyDeleteOp(payload);
@@ -263,6 +266,22 @@ class SyncService {
         status: Value(status),
         completedAt: completedAtStr != null
             ? Value(DateTime.parse(completedAtStr))
+            : const Value.absent(),
+      ),
+    );
+  }
+
+  Future<void> _applyTripMetaOp(String tripId, Map<String, dynamic> p) async {
+    await (_db.update(_db.trips)..where((t) => t.id.equals(tripId))).write(
+      TripsCompanion(
+        whatsappGroupLink: p['whatsappGroupLink'] != null
+            ? Value(p['whatsappGroupLink'] as String)
+            : const Value.absent(),
+        driveFolderId: p['driveFolderId'] != null
+            ? Value(p['driveFolderId'] as String)
+            : const Value.absent(),
+        driveFolderLink: p['driveFolderLink'] != null
+            ? Value(p['driveFolderLink'] as String)
             : const Value.absent(),
       ),
     );

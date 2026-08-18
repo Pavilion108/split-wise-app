@@ -96,6 +96,14 @@ class Settlements extends Table {
   TextColumn get toMemberId => text().references(Members, #id)();
   RealColumn get amount => real()();
   RealColumn get partialRemaining => real().nullable()();
+  /// Payment method: 'upi', 'cash', 'other' (empty = legacy).
+  TextColumn get method => text().withDefault(const Constant(''))();
+  /// Provider transaction reference / id (for audit trail).
+  TextColumn get transactionRef => text().withDefault(const Constant(''))();
+  /// 'paid' or 'pending'.
+  TextColumn get status => text().withDefault(const Constant('paid'))();
+  /// When the payment was verified/confirmed.
+  DateTimeColumn get verifiedAt => dateTime().nullable()();
   TextColumn get note => text().withDefault(const Constant(''))();
   DateTimeColumn get paidAt => dateTime()();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
@@ -146,7 +154,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -158,6 +166,12 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) {
             await m.addColumn(trips, trips.status);
             await m.addColumn(trips, trips.completedAt);
+          }
+          if (from < 6) {
+            await m.addColumn(settlements, settlements.method);
+            await m.addColumn(settlements, settlements.transactionRef);
+            await m.addColumn(settlements, settlements.status);
+            await m.addColumn(settlements, settlements.verifiedAt);
           }
         },
       );

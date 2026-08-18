@@ -85,10 +85,26 @@ class DriveService {
     final created =
         await api.files.create(folder, $fields: 'id, name, webViewLink');
 
+    var link = created.webViewLink ?? '';
+
+    // With the `drive.file` scope, webViewLink is often null until the file is
+    // shared. Share it with the signed-in user so a viewable link is generated.
+    final email = _authService.userEmail;
+    if (email != null) {
+      try {
+        await shareFolderWith(folderId: created.id!, email: email);
+        final f = await api.files.get(created.id!,
+            $fields: 'webViewLink') as drive.File;
+        link = f.webViewLink ?? link;
+      } catch (_) {
+        // Link stays empty; the folder still exists for the owner.
+      }
+    }
+
     return TripFolder(
       folderId: created.id!,
       name: tripName,
-      link: created.webViewLink ?? '',
+      link: link,
     );
   }
 

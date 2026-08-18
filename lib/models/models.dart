@@ -153,6 +153,10 @@ class Settlement {
     required this.amount,
     required this.paidAt,
     this.partialRemaining,
+    this.method = '',
+    this.transactionRef = '',
+    this.status = 'paid',
+    this.verifiedAt,
     this.note = '',
     this.deleted = false,
   });
@@ -164,6 +168,10 @@ class Settlement {
         toMemberId: row.toMemberId,
         amount: row.amount,
         partialRemaining: row.partialRemaining,
+        method: row.method,
+        transactionRef: row.transactionRef,
+        status: row.status,
+        verifiedAt: row.verifiedAt,
         note: row.note,
         paidAt: row.paidAt,
         deleted: row.deleted,
@@ -175,6 +183,10 @@ class Settlement {
   final String toMemberId;
   final double amount;
   final double? partialRemaining;
+  final String method;
+  final String transactionRef;
+  final String status;
+  final DateTime? verifiedAt;
   final String note;
   final DateTime paidAt;
   final bool deleted;

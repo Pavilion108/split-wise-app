@@ -79,6 +79,31 @@ class TripRepository {
     }
   }
 
+  /// Set or update the WhatsApp group invite link for a trip.
+  /// Updates local DB, records a sync op, and pushes to the cloud so all
+  /// members can see the "Join WhatsApp Group" button.
+  Future<void> setWhatsAppLink(String tripId, String link) async {
+    final trimmed = link.trim();
+    await _db.transaction(() async {
+      await (_db.update(_db.trips)..where((t) => t.id.equals(tripId)))
+          .write(TripsCompanion(whatsappGroupLink: Value(trimmed)));
+      await _opLog.append(
+        tripId: tripId,
+        opType: 'trip_meta',
+        entityId: tripId,
+        payload: {'id': tripId, 'whatsappGroupLink': trimmed},
+      );
+    });
+
+    if (_cloudSync != null) {
+      await _cloudSync.updateTripMeta(
+        tripId: tripId,
+        updates: {'whatsappGroupLink': trimmed},
+      );
+      await _cloudSync.pushTripOps(tripId);
+    }
+  }
+
   // --- Members ---
 
   Stream<List<Member>> watchMembers(String tripId) {
@@ -213,7 +238,12 @@ class TripRepository {
             },
           );
         }
-      } catch (_) {}
+      } catch (e) {
+        // Trip is still created even if Drive fails. Log so it's debuggable.
+        // Common causes: Drive scope not granted in OAuth consent screen,
+        // or the user denied Drive access during sign-in.
+        print('Drive folder creation failed: $e');
+      }
     }
 
     return (await getTrip(tripId))!;

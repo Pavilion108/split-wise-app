@@ -61,6 +61,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: IndexedStack(
+              alignment: Alignment.center,
               index: _step,
               children: [
                 _buildPlatformChoiceStep(),
