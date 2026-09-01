@@ -232,7 +232,11 @@ class Balance {
   final double paidOut;
 
   /// Positive = should RECEIVE. Negative = should PAY.
-  double get net => paid - share - received + paidOut;
+  /// FIXED: Corrected settlement logic
+  /// paid - share = basic balance before settlements
+  /// paidOut = money I paid out (reduces my debt)
+  /// received = money I received (reduces what others owe me)
+  double get net => paid - share + paidOut - received;
 }
 
 class TripBalance {
