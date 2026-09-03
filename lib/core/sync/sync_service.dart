@@ -187,6 +187,7 @@ class SyncService {
             id: Value(tripId),
             name: Value(p['name'] ?? ''),
             baseCurrency: Value(p['baseCurrency'] ?? 'INR'),
+            inviteCode: Value(p['inviteCode'] as String? ?? ''),
             createdAt: Value(DateTime.parse(p['createdAt'])),
           ));
     }
@@ -388,6 +389,9 @@ class SyncService {
             : const Value.absent(),
         driveFolderLink: p['driveFolderLink'] != null
             ? Value(p['driveFolderLink'] as String)
+            : const Value.absent(),
+        inviteCode: p['inviteCode'] != null
+            ? Value(p['inviteCode'] as String)
             : const Value.absent(),
       ),
     );

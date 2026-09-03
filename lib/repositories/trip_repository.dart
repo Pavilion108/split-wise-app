@@ -210,6 +210,7 @@ class TripRepository {
           'id': tripId,
           'name': name,
           'baseCurrency': baseCurrency,
+          'inviteCode': inviteCode,
           'whatsappGroupLink': whatsappGroupLink,
           'createdAt': now.toIso8601String(),
         },
@@ -433,18 +434,20 @@ class TripRepository {
       await _cloudSync.pushTripOps(resolvedTripId);
     }
 
-    // Pull Drive folder info from cloud and update local DB.
+    // Pull Drive folder info and inviteCode from cloud and update local DB.
     if (_cloudSync != null) {
       final meta = await _cloudSync.pullTripMeta(resolvedTripId);
       if (meta != null) {
         final folderId = meta['driveFolderId'] as String? ?? '';
         final folderLink = meta['driveFolderLink'] as String? ?? '';
         final waLink = meta['whatsappGroupLink'] as String? ?? '';
+        final inviteCode = meta['inviteCode'] as String? ?? '';
         await (_db.update(_db.trips)..where((t) => t.id.equals(resolvedTripId)))
             .write(TripsCompanion(
           driveFolderId: folderId.isNotEmpty ? Value(folderId) : const Value.absent(),
           driveFolderLink: folderLink.isNotEmpty ? Value(folderLink) : const Value.absent(),
           whatsappGroupLink: waLink.isNotEmpty ? Value(waLink) : const Value.absent(),
+          inviteCode: inviteCode.isNotEmpty ? Value(inviteCode) : const Value.absent(),
         ));
       }
     }

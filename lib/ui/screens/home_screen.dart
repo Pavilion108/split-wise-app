@@ -19,7 +19,9 @@ import 'profile_screen.dart';
 import 'trip_dashboard_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.initialJoinCode});
+
+  final String? initialJoinCode;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -48,6 +50,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Repair orphaned splits: expenses synced before the split-creation
     // bug fix have no split rows. Recompute all trips on app load.
     Future.microtask(_repairAllTrips);
+
+    // If we have a pending join code from deep link, auto-open join dialog.
+    if (widget.initialJoinCode != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _joinTripWithCode(context, ref, widget.initialJoinCode!);
+      });
+    }
   }
 
   Future<void> _repairAllTrips() async {
@@ -452,85 +461,126 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Future<void> _joinTrip(BuildContext context, WidgetRef ref) async {
-    final codeCtrl = TextEditingController();
-    // Pre-fill name from Google profile if signed in.
+  /// Join trip with a pre-filled code (from deep link).
+  Future<void> _joinTripWithCode(BuildContext context, WidgetRef ref, String code) async {
+    // Wait for auth to settle
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    final codeCtrl = TextEditingController(text: code);
     final auth = ref.read(authServiceProvider);
     final googleName = auth.currentUser?.displayName ?? '';
     final nameCtrl = TextEditingController(text: googleName);
+    _showJoinDialog(context, ref, codeCtrl, nameCtrl);
+  }
 
-    await showDialog<bool>(
+  Future<void> _joinTrip(BuildContext context, WidgetRef ref) async {
+    final codeCtrl = TextEditingController();
+    final auth = ref.read(authServiceProvider);
+    final googleName = auth.currentUser?.displayName ?? '';
+    final nameCtrl = TextEditingController(text: googleName);
+    _showJoinDialog(context, ref, codeCtrl, nameCtrl);
+  }
+
+  void _showJoinDialog(BuildContext context, WidgetRef ref, TextEditingController codeCtrl, TextEditingController nameCtrl) {
+    bool _loading = false;
+    String? _error;
+
+    showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Join Trip'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Enter the invite code from your group:'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: codeCtrl,
-                autofocus: true,
-                textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(
-                  labelText: 'Invite code',
-                  hintText: 'ABC123',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Join Trip'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Enter the invite code from your group:'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: codeCtrl,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    labelText: 'Invite code',
+                    hintText: 'ABC123',
+                    errorText: _error,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Your name',
-                  hintText: 'How members see you',
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Your name',
+                    hintText: 'How members see you',
+                  ),
                 ),
-              ),
-            ],
+                if (_loading) ...[
+                  const SizedBox(height: 16),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(width: 12),
+                      Text('Joining trip...'),
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final code = codeCtrl.text.trim();
-              final name = nameCtrl.text.trim();
-              if (code.isEmpty || name.isEmpty) return;
-
-              final deviceId = ref.read(deviceIdentityProvider).id;
-              final myGoogleId = auth.currentUser?.id ?? '';
-              final myEmail = auth.currentUser?.email ?? '';
-              final trip = await ref.read(tripRepositoryProvider).joinTrip(
-                    inviteCode: code,
-                    memberName: name,
-                    deviceId: deviceId,
-                    googleId: myGoogleId,
-                    emailLower: myEmail.toLowerCase(),
-                  );
-
-              if (trip == null) {
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Invalid invite code')),
-                  );
+          actions: [
+            TextButton(
+              onPressed: _loading ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: _loading ? null : () async {
+                final code = codeCtrl.text.trim();
+                final name = nameCtrl.text.trim();
+                if (code.isEmpty || name.isEmpty) {
+                  setState(() => _error = 'Both fields are required');
+                  return;
                 }
-                return;
-              }
+                if (!InviteCode.isValid(code)) {
+                  setState(() => _error = 'Code must be 6 characters (letters/numbers)');
+                  return;
+                }
 
-              // Recompute splits now that we're a member.
-              await ref.read(expenseRepositoryProvider).recomputeEqualSplits(trip.id);
+                setState(() { _loading = true; _error = null; });
 
-              if (ctx.mounted) {
-                Navigator.pop(ctx, true);
-                _showJoinSuccess(context, ref, trip);
-              }
-            },
-            child: const Text('Join'),
-          ),
-        ],
+                try {
+                  final deviceId = ref.read(deviceIdentityProvider).id;
+                  final auth = ref.read(authServiceProvider);
+                  final myGoogleId = auth.currentUser?.id ?? '';
+                  final myEmail = auth.currentUser?.email ?? '';
+                  final trip = await ref.read(tripRepositoryProvider).joinTrip(
+                        inviteCode: code,
+                        memberName: name,
+                        deviceId: deviceId,
+                        googleId: myGoogleId,
+                        emailLower: myEmail.toLowerCase(),
+                      );
+
+                  if (trip == null) {
+                    setState(() { _loading = false; _error = 'Invalid invite code. Check and try again.'; });
+                    return;
+                  }
+
+                  // Recompute splits now that we're a member.
+                  await ref.read(expenseRepositoryProvider).recomputeEqualSplits(trip.id);
+
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx, true);
+                    _showJoinSuccess(context, ref, trip);
+                  }
+                } catch (e) {
+                  setState(() { _loading = false; _error = 'Error: ${e.toString().replaceAll('Exception: ', '')}'; });
+                }
+              },
+              child: const Text('Join'),
+            ),
+          ],
+        ),
       ),
     );
   }

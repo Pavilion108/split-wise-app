@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../providers/app_provider.dart';
+import '../../services/admin_service.dart';
+import 'admin_screen.dart';
 import '../../services/avatar_service.dart';
 import '../../services/upi_launcher.dart';
 import '../../services/version_service.dart';
@@ -405,6 +407,23 @@ class ProfileScreen extends ConsumerWidget {
           _sectionHeader(context, 'Sponsor a Coffee'),
           const SponsorCard(),
           const SizedBox(height: 24),
+
+          // --- Admin Section (only for admin user) ---
+          if (AdminService.isAdmin(auth.currentUser?.email)) ...[
+            _sectionHeader(context, 'Admin'),
+            _SettingsTile(
+              icon: Icons.admin_panel_settings_rounded,
+              title: 'Admin Dashboard',
+              subtitle: 'Full database controls & monitoring',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AdminScreen(adminEmail: auth.currentUser?.email ?? ''),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // --- Sign Out ---
           SizedBox(

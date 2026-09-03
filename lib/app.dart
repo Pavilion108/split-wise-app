@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,11 +16,30 @@ class SplitWiseApp extends ConsumerStatefulWidget {
 
 class _SplitWiseAppState extends ConsumerState<SplitWiseApp> {
   bool _checking = true;
+  String? _pendingJoinCode;
 
   @override
   void initState() {
     super.initState();
     _initAuth();
+    _extractJoinCodeFromUrl();
+  }
+
+  void _extractJoinCodeFromUrl() {
+    if (!kIsWeb) return;
+    try {
+      final uri = Uri.base;
+      final pathSegments = uri.pathSegments;
+      if (pathSegments.isNotEmpty && pathSegments.first == 'join' && pathSegments.length >= 2) {
+        _pendingJoinCode = pathSegments[1].toUpperCase();
+      }
+      // Also check query parameter as fallback
+      if (_pendingJoinCode == null && uri.queryParameters.containsKey('code')) {
+        _pendingJoinCode = uri.queryParameters['code']!.toUpperCase();
+      }
+    } catch (_) {
+      // URL parsing failed — proceed without join code.
+    }
   }
 
   Future<void> _initAuth() async {
@@ -51,7 +71,7 @@ class _SplitWiseAppState extends ConsumerState<SplitWiseApp> {
               body: Center(child: CircularProgressIndicator()),
             )
           : auth.isSignedIn
-              ? const HomeScreen()
+              ? HomeScreen(initialJoinCode: _pendingJoinCode)
               : const OnboardingScreen(),
     );
   }

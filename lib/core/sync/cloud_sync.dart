@@ -201,24 +201,27 @@ class CloudSyncService {
     String memberId = '',
   }) async {
     // 1. Write invite notification (so the user sees it in their inbox).
-    await _db.ref('invites/$invitedGoogleId/$tripId').set({
-      'tripId': tripId,
-      'tripName': tripName,
-      'fromDevice': _deviceId,
-      'fromUser': _userId,
-      'invitedEmail': invitedEmail,
-      'createdAt': DateTime.now().toIso8601String(),
-      'status': 'pending',
-    });
+    if (invitedGoogleId.isNotEmpty) {
+      await _db.ref('invites/$invitedGoogleId/$tripId').set({
+        'tripId': tripId,
+        'tripName': tripName,
+        'fromDevice': _deviceId,
+        'fromUser': _userId,
+        'invitedEmail': invitedEmail,
+        'createdAt': DateTime.now().toIso8601String(),
+        'status': 'pending',
+      });
 
-    // 2. Register this trip under the invited user's path so restoreTrips()
-    //    picks it up when they log in — even before they accept the invite.
-    await _db.ref('users/$invitedGoogleId/trips/$tripId').set(true);
+      // 2. Register this trip under the invited user's path so restoreTrips()
+      //    picks it up when they log in — even before they accept the invite.
+      await _db.ref('users/$invitedGoogleId/trips/$tripId').set(true);
+    }
 
-    // 3. If a memberId was provided, the member row was already created by the
-    //    caller. Push it to the invited user's trip so they see themselves.
-    //    (The member op is already in the op-log and will be pulled by
-    //    restoreTrips → pullAllOps.)
+    // 3. Also register under email path so users added by email can find the trip.
+    if (invitedEmail.isNotEmpty) {
+      final emailKey = invitedEmail.toLowerCase().replaceAll('.', '_dot_').replaceAll('@', '_at_');
+      await _db.ref('email_trips/$emailKey/$tripId').set(true);
+    }
   }
 
   Stream<Map<String, dynamic>> watchInvites(String googleId) {
@@ -248,6 +251,24 @@ class CloudSyncService {
       if (snap.exists && snap.value != null) {
         final map = Map<String, dynamic>.from(snap.value as Map);
         tripIds.addAll(map.keys);
+      }
+    }
+
+    // Also check email_trips path for users added by email.
+    if (_userId != null) {
+      // Try to find email from the user's profile in the directory.
+      final profileSnap = await _db.ref('users/$_userId/profile').get();
+      if (profileSnap.exists && profileSnap.value != null) {
+        final profile = Map<String, dynamic>.from(profileSnap.value as Map);
+        final email = (profile['email'] ?? '') as String;
+        if (email.isNotEmpty) {
+          final emailKey = email.toLowerCase().replaceAll('.', '_dot_').replaceAll('@', '_at_');
+          final emailSnap = await _db.ref('email_trips/$emailKey').get();
+          if (emailSnap.exists && emailSnap.value != null) {
+            final map = Map<String, dynamic>.from(emailSnap.value as Map);
+            tripIds.addAll(map.keys);
+          }
+        }
       }
     }
 
