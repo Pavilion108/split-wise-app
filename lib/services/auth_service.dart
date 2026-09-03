@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,7 +14,7 @@ const _webClientId =
 /// Provides user identity and Drive access tokens.
 ///
 /// Cross-platform identity:
-/// - Web: Google Sign-In via browser (OAuth2 flow)
+/// - Web: Google Sign-In via browser (OAuth2 flow) — uses renderButton widget
 /// - Native: Google Sign-In via device account (auto-detected)
 /// - Both produce the same Firebase Auth UID when using the same Google account
 /// - Firebase RTDB is shared — same user sees same data on web + app
@@ -29,6 +32,16 @@ class AuthService extends ChangeNotifier {
   bool get wasAutoLogin => _wasAutoLogin;
   bool _wasAutoLogin = false;
 
+  /// Whether web sign-in completed via renderButton callback.
+  bool get webSignInCompleted => _webSignInCompleted;
+  bool _webSignInCompleted = false;
+
+  /// Guard against calling initialize() more than once (web plugin throws).
+  bool _isInitialized = false;
+
+  /// Completer that resolves when the first authentication event fires.
+  Completer<void>? _authEventCompleter;
+
   static const _kSignedInFlag = 'splitwise_signed_in';
 
   Future<void> _setSignedInFlag(bool value) async {
@@ -40,30 +53,66 @@ class AuthService extends ChangeNotifier {
 
   /// Initialize and check if user was previously signed in.
   ///
-  /// IMPORTANT: we never show an account picker on launch. A silent restore is
-  /// only attempted when we already know a session exists (persisted flag), so a
-  /// fresh user just sees the welcome screen until they tap "Sign in with Google".
-  /// Returning users are restored silently and stay signed in until they Log Out.
+  /// On web: the client ID is auto-detected from the HTML meta tag
+  /// `<meta name="google-signin-client_id" content="...">`. We must NOT
+  /// pass `serverClientId` on web — it's not supported and will crash.
+  /// On native: we pass `serverClientId` for the Android token exchange.
+  ///
+  /// IMPORTANT: This method is idempotent — calling it more than once is safe.
+  /// The web plugin throws if `initialize()` is called twice, so we guard it.
   Future<void> checkSignIn() async {
-    try {
-      await _googleSignIn
-          .initialize(serverClientId: _webClientId)
-          .timeout(const Duration(seconds: 5));
-    } catch (_) {}
-
-    // Listen to auth events.
-    _googleSignIn.authenticationEvents.listen((event) {
-      if (event is GoogleSignInAuthenticationEventSignIn) {
-        _currentUser = event.user;
-        notifyListeners();
-      } else if (event is GoogleSignInAuthenticationEventSignOut) {
-        _currentUser = null;
-        notifyListeners();
+    // Guard: only initialize once (web plugin asserts on double init).
+    if (!_isInitialized) {
+      _isInitialized = true;
+      _authEventCompleter = Completer<void>();
+      try {
+        if (kIsWeb) {
+          await _googleSignIn.initialize().timeout(const Duration(seconds: 5));
+        } else {
+          await _googleSignIn
+              .initialize(serverClientId: _webClientId)
+              .timeout(const Duration(seconds: 5));
+        }
+      } catch (e) {
+        debugPrint('GoogleSignIn.initialize failed: $e');
       }
-    });
 
-    // Only attempt a silent restore if we know a session exists. This avoids
-    // popping the Google account chooser before the user has opted in.
+      // Listen to auth events — fires on both initial restore and fresh sign-in.
+      _googleSignIn.authenticationEvents.listen((event) {
+        if (event is GoogleSignInAuthenticationEventSignIn) {
+          _currentUser = event.user;
+          _webSignInCompleted = true;
+          if (_authEventCompleter != null && !_authEventCompleter!.isCompleted) {
+            _authEventCompleter!.complete();
+          }
+          notifyListeners();
+        } else if (event is GoogleSignInAuthenticationEventSignOut) {
+          _currentUser = null;
+          if (_authEventCompleter != null && !_authEventCompleter!.isCompleted) {
+            _authEventCompleter!.complete();
+          }
+          notifyListeners();
+        }
+      });
+    }
+
+    // On web, attemptLightweightAuthentication() always returns null (by design).
+    // The actual restore happens via the authenticationEvents stream when
+    // Google One Tap completes in the background. We wait for that event
+    // so the UI doesn't flash the onboarding screen.
+    if (kIsWeb) {
+      _googleSignIn.attemptLightweightAuthentication();
+      // Wait up to 3s for Google One Tap to restore the session.
+      if (_authEventCompleter != null && !_authEventCompleter!.isCompleted) {
+        await _authEventCompleter!.future.timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {}, // Timeout is fine — user will see sign-in button.
+        );
+      }
+      return;
+    }
+
+    // On native, attemptLightweightAuthentication() returns the account or null.
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(_kSignedInFlag) != true) return;
 
@@ -71,23 +120,34 @@ class AuthService extends ChangeNotifier {
       final future = _googleSignIn.attemptLightweightAuthentication();
       final account = future == null
           ? null
-          : await future.timeout(const Duration(seconds: 5));
+          : await future.timeout(const Duration(seconds: 8));
       if (account != null) {
         _currentUser = account;
+        _webSignInCompleted = true;
         _wasAutoLogin = true;
         notifyListeners();
       } else {
+        // Session expired or revoked — clear the flag.
         await _setSignedInFlag(false);
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Silent auth restore failed: $e');
       await _setSignedInFlag(false);
     }
   }
 
-  /// Trigger Google Sign-In flow.
-  /// On native: opens Google account picker (or auto-selects if only one account).
-  /// On web: opens OAuth2 consent screen in browser.
+  /// Trigger Google Sign-In flow (native only).
+  /// On web, the sign-in is handled by the renderButton widget.
   Future<AuthResult> signIn() async {
+    if (kIsWeb) {
+      return AuthResult.error(
+          'Web sign-in uses the Google button widget — call signInFromButton() after renderButton callback.');
+    }
+    return _signInNative();
+  }
+
+  /// Native sign-in via Google account picker.
+  Future<AuthResult> _signInNative() async {
     try {
       final account = await _googleSignIn.authenticate();
 
@@ -95,9 +155,7 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
       await _setSignedInFlag(true);
 
-      // Request Drive scope, but NEVER fail sign-in if it's denied or the
-      // OAuth consent screen hasn't granted it yet. Drive features simply
-      // stay unavailable; the rest of the app works normally.
+      // Request Drive scope, but NEVER fail sign-in if it's denied.
       String? driveToken;
       try {
         final authorization = await account.authorizationClient
@@ -106,6 +164,10 @@ class AuthService extends ChangeNotifier {
       } catch (_) {
         driveToken = null;
       }
+      // Upsert directory profile (best-effort)
+      try {
+        await _upsertDirectory(account);
+      } catch (_) {}
 
       return AuthResult.success(
         user: AuthUser(
@@ -121,11 +183,78 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Called after the web renderButton triggers authenticationEvents.
+  /// The actual user is already set via the event listener — this just
+  /// persists the flag and returns the result.
+  Future<AuthResult> signInFromButton() async {
+    if (_currentUser == null) {
+      return AuthResult.error('No user after web sign-in');
+    }
+    await _setSignedInFlag(true);
+
+    String? driveToken;
+    try {
+      final authorization = await _currentUser!.authorizationClient
+          .authorizeScopes(['https://www.googleapis.com/auth/drive.file']);
+      driveToken = authorization.accessToken;
+    } catch (_) {
+      driveToken = null;
+    }
+    try {
+      await _upsertDirectory(_currentUser!);
+    } catch (_) {}
+
+    return AuthResult.success(
+      user: AuthUser(
+        id: _currentUser!.id,
+        email: _currentUser!.email,
+        displayName: _currentUser!.displayName ?? '',
+        photoUrl: _currentUser!.photoUrl,
+      ),
+      accessToken: driveToken,
+    );
+  }
+
+  Future<void> _upsertDirectory(GoogleSignInAccount account) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final searchable = prefs.getBool('user_searchable') ?? true;
+      final avatarAsset = prefs.getString('user_avatar_asset') ?? '';
+      final lower = account.email.toLowerCase().trim();
+      final usernameLower = (account.displayName ?? '').toLowerCase().replaceAll(RegExp(r'\s+'), '');
+      await FirebaseDatabase.instance.ref('users/${account.id}/profile').set({
+        'googleId': account.id,
+        'email': account.email,
+        'emailLower': lower,
+        'displayName': account.displayName ?? '',
+        'usernameLower': usernameLower,
+        'photoUrl': account.photoUrl ?? '',
+        'avatarAsset': avatarAsset,
+        'searchable': searchable,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+      if (searchable) {
+        await FirebaseDatabase.instance.ref('directory/${account.id}').set({
+          'googleId': account.id,
+          'displayName': account.displayName ?? '',
+          'usernameLower': usernameLower,
+          'emailLower': lower,
+          'email': account.email,
+          'avatarAsset': avatarAsset,
+          'photoUrl': account.photoUrl ?? '',
+        });
+      } else {
+        await FirebaseDatabase.instance.ref('directory/${account.id}').remove();
+      }
+    } catch (_) {}
+  }
+
   /// Sign out.
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     _currentUser = null;
     _wasAutoLogin = false;
+    _webSignInCompleted = false;
     await _setSignedInFlag(false);
     notifyListeners();
   }

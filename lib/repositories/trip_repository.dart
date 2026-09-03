@@ -79,6 +79,43 @@ class TripRepository {
     }
   }
 
+  /// Soft-delete a trip. Hides it from the home screen but preserves data.
+  /// A sync op is recorded so other devices also hide the trip.
+  Future<void> deleteTrip(String tripId) async {
+    final now = DateTime.now();
+    await _db.transaction(() async {
+      await (_db.update(_db.trips)..where((t) => t.id.equals(tripId)))
+          .write(TripsCompanion(
+        deleted: const Value(true),
+      ));
+      await _opLog.append(
+        tripId: tripId,
+        opType: 'trip_deleted',
+        entityId: tripId,
+        payload: {
+          'id': tripId,
+          'deleted': true,
+          'deletedAt': now.toIso8601String(),
+        },
+      );
+    });
+
+    if (_cloudSync != null) {
+      await _cloudSync.pushTripOps(tripId);
+    }
+  }
+
+  /// Delete ALL non-deleted trips (soft-delete). Used for one-time cleanup.
+  Future<int> deleteAllTrips() async {
+    final trips = await (_db.select(_db.trips)
+          ..where((t) => t.deleted.equals(false)))
+        .get();
+    for (final trip in trips) {
+      await deleteTrip(trip.id);
+    }
+    return trips.length;
+  }
+
   /// Set or update the WhatsApp group invite link for a trip.
   /// Updates local DB, records a sync op, and pushes to the cloud so all
   /// members can see the "Join WhatsApp Group" button.
@@ -140,6 +177,7 @@ class TripRepository {
     required String baseCurrency,
     required String memberName,
     required String deviceId,
+    String whatsappGroupLink = '',
   }) async {
     final tripId = _uuid.v4();
     final memberId = _uuid.v4();
@@ -152,6 +190,7 @@ class TripRepository {
             name: name,
             baseCurrency: Value(baseCurrency),
             inviteCode: Value(inviteCode),
+            whatsappGroupLink: Value(whatsappGroupLink),
             createdAt: now,
           ));
 
@@ -171,6 +210,7 @@ class TripRepository {
           'id': tripId,
           'name': name,
           'baseCurrency': baseCurrency,
+          'whatsappGroupLink': whatsappGroupLink,
           'createdAt': now.toIso8601String(),
         },
       );
@@ -195,6 +235,7 @@ class TripRepository {
         name: name,
         baseCurrency: baseCurrency,
         inviteCode: inviteCode,
+        whatsappGroupLink: whatsappGroupLink,
         createdAt: now,
       );
       await _cloudSync.pushMember(
@@ -251,10 +292,14 @@ class TripRepository {
 
   /// Join an existing trip by invite code.
   /// First tries cloud lookup (works on any network), then falls back to local.
+  /// [memberName] is the user's Google display name — used as the canonical
+  /// name so every trip shows the same username for this person.
   Future<Trip?> joinTrip({
     required String inviteCode,
     required String memberName,
     required String deviceId,
+    String googleId = '',
+    String emailLower = '',
   }) async {
     final code = inviteCode.toUpperCase().trim();
 
@@ -277,15 +322,73 @@ class TripRepository {
 
     final resolvedTripId = tripId;
 
-    // Check if already a member.
-    final existing = await (_db.select(_db.members)
-          ..where((m) =>
-              m.tripId.equals(resolvedTripId) &
-              m.deviceId.equals(deviceId) &
-              m.deleted.equals(false)))
-        .getSingleOrNull();
+    // Check if already a member — match by deviceId, googleId, or emailLower.
+    MemberRow? existing;
+    if (googleId.isNotEmpty) {
+      existing = await (_db.select(_db.members)
+            ..where((m) =>
+                m.tripId.equals(resolvedTripId) &
+                m.googleId.equals(googleId) &
+                m.deleted.equals(false)))
+          .getSingleOrNull();
+    }
+    if (existing == null && emailLower.isNotEmpty) {
+      existing = await (_db.select(_db.members)
+            ..where((m) =>
+                m.tripId.equals(resolvedTripId) &
+                m.emailLower.equals(emailLower) &
+                m.deleted.equals(false)))
+          .getSingleOrNull();
+    }
+    if (existing == null) {
+      existing = await (_db.select(_db.members)
+            ..where((m) =>
+                m.tripId.equals(resolvedTripId) &
+                m.deviceId.equals(deviceId) &
+                m.deleted.equals(false)))
+          .getSingleOrNull();
+    }
 
-    if (existing != null) return getTrip(resolvedTripId);
+    if (existing != null) {
+      final existingId = existing.id;
+      // Update the existing member row with the joining user's actual identity.
+      // This is critical: the inviter may have created the member with deviceId=''
+      // and a placeholder name. Now the real user joins — we update their deviceId,
+      // googleId, emailLower, and name so all future lookups match correctly.
+      await (_db.update(_db.members)..where((m) => m.id.equals(existingId))).write(
+        MembersCompanion(
+          deviceId: Value(deviceId),
+          name: memberName.isNotEmpty ? Value(memberName) : const Value.absent(),
+          googleId: googleId.isNotEmpty ? Value(googleId) : const Value.absent(),
+          emailLower: emailLower.isNotEmpty ? Value(emailLower) : const Value.absent(),
+        ),
+      );
+      await _opLog.append(
+        tripId: resolvedTripId,
+        opType: 'member',
+        entityId: existingId,
+        payload: {
+          'id': existingId,
+          'deviceId': deviceId,
+          'name': memberName,
+          'googleId': googleId,
+          'emailLower': emailLower,
+        },
+      );
+      if (_cloudSync != null) {
+        await _cloudSync.pushMember(
+          tripId: resolvedTripId,
+          memberId: existingId,
+          name: memberName,
+          deviceId: deviceId,
+          joinedAt: existing.joinedAt,
+          googleId: googleId,
+          emailLower: emailLower,
+        );
+        await _cloudSync.pushTripOps(resolvedTripId);
+      }
+      return getTrip(resolvedTripId);
+    }
 
     // Add as member.
     final memberId = _uuid.v4();
@@ -297,6 +400,8 @@ class TripRepository {
             name: memberName,
             deviceId: deviceId,
             joinedAt: now,
+            googleId: Value(googleId),
+            emailLower: Value(emailLower),
           ));
       await _opLog.append(
         tripId: resolvedTripId,
@@ -307,6 +412,8 @@ class TripRepository {
           'tripId': resolvedTripId,
           'name': memberName,
           'deviceId': deviceId,
+          'googleId': googleId,
+          'emailLower': emailLower,
           'joinedAt': now.toIso8601String(),
         },
       );
@@ -320,6 +427,8 @@ class TripRepository {
         name: memberName,
         deviceId: deviceId,
         joinedAt: now,
+        googleId: googleId,
+        emailLower: emailLower,
       );
       await _cloudSync.pushTripOps(resolvedTripId);
     }
@@ -348,6 +457,9 @@ class TripRepository {
     required String name,
     required String deviceId,
     int avatarColor = 0xFF43A047,
+    String avatarAsset = '',
+    String googleId = '',
+    String emailLower = '',
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
@@ -359,6 +471,9 @@ class TripRepository {
             name: name,
             deviceId: deviceId,
             avatarColor: Value(avatarColor),
+            avatarAsset: Value(avatarAsset),
+            googleId: Value(googleId),
+            emailLower: Value(emailLower),
             joinedAt: now,
           ));
       await _opLog.append(
@@ -371,6 +486,9 @@ class TripRepository {
           'name': name,
           'deviceId': deviceId,
           'avatarColor': avatarColor,
+          'avatarAsset': avatarAsset,
+          'googleId': googleId,
+          'emailLower': emailLower,
           'joinedAt': now.toIso8601String(),
         },
       );
@@ -384,11 +502,31 @@ class TripRepository {
         name: name,
         deviceId: deviceId,
         joinedAt: now,
+        avatarAsset: avatarAsset,
+        googleId: googleId,
+        emailLower: emailLower,
+        avatarColor: avatarColor,
       );
       await _cloudSync.pushTripOps(tripId);
     }
 
     return (await getMember(id))!;
+  }
+
+  Future<void> updateMemberAvatar(String memberId, String avatarAsset) async {
+    final member = await getMember(memberId);
+    if (member == null) return;
+    await _db.transaction(() async {
+      await (_db.update(_db.members)..where((m) => m.id.equals(memberId)))
+          .write(MembersCompanion(avatarAsset: Value(avatarAsset)));
+      await _opLog.append(
+        tripId: member.tripId,
+        opType: 'member',
+        entityId: memberId,
+        payload: {'id': memberId, 'avatarAsset': avatarAsset},
+      );
+    });
+    if (_cloudSync != null) await _cloudSync.pushTripOps(member.tripId);
   }
 
   Future<void> removeMember(String memberId) async {

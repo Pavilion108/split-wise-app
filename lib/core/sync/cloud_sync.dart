@@ -23,6 +23,10 @@ class CloudSyncService {
   final _statusController = StreamController<CloudSyncStatus>.broadcast();
   Stream<CloudSyncStatus> get status => _statusController.stream;
 
+  /// Callback invoked when a remote member add is detected.
+  /// The app layer provides this to recompute splits.
+  void Function(String tripId)? onMemberAdded;
+
   // ---------------------------------------------------------------------------
   // Push: upload local ops to cloud
   // ---------------------------------------------------------------------------
@@ -102,6 +106,10 @@ class CloudSyncService {
     required String name,
     required String deviceId,
     required DateTime joinedAt,
+    String avatarAsset = '',
+    String googleId = '',
+    String emailLower = '',
+    int avatarColor = 0xFF1E88E5,
   }) async {
     final memberRef = _db.ref('trips/$tripId/members/$memberId');
     await memberRef.set({
@@ -110,6 +118,10 @@ class CloudSyncService {
       'name': name,
       'deviceId': deviceId,
       'joinedAt': joinedAt.toIso8601String(),
+      if (avatarAsset.isNotEmpty) 'avatarAsset': avatarAsset,
+      if (googleId.isNotEmpty) 'googleId': googleId,
+      if (emailLower.isNotEmpty) 'emailLower': emailLower,
+      'avatarColor': avatarColor,
     });
 
     if (_userId != null) {
@@ -118,22 +130,158 @@ class CloudSyncService {
     await _db.ref('devices/$_deviceId/trips/$tripId').set(true);
   }
 
+  // --- User directory (Option 2) ---
+
+  Future<void> upsertUserProfile({
+    required String googleId,
+    required String email,
+    required String displayName,
+    String photoUrl = '',
+    String avatarAsset = '',
+    bool searchable = true,
+  }) async {
+    final lower = email.toLowerCase().trim();
+    final usernameLower = displayName.toLowerCase().replaceAll(RegExp(r'\s+'), '').trim();
+    await _db.ref('users/$googleId/profile').set({
+      'googleId': googleId,
+      'email': email,
+      'emailLower': lower,
+      'displayName': displayName,
+      'usernameLower': usernameLower,
+      'photoUrl': photoUrl,
+      'avatarAsset': avatarAsset,
+      'searchable': searchable,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+    if (searchable) {
+      await _db.ref('directory/$googleId').set({
+        'googleId': googleId,
+        'displayName': displayName,
+        'usernameLower': usernameLower,
+        'emailLower': lower,
+        'avatarAsset': avatarAsset,
+        'photoUrl': photoUrl,
+      });
+    } else {
+      await _db.ref('directory/$googleId').remove();
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> searchUsers(String query, {int limit = 10}) async {
+    final q = query.toLowerCase().trim();
+    if (q.length < 2) return [];
+    final snap = await _db.ref('directory').get();
+    if (!snap.exists || snap.value == null) return [];
+    final map = Map<String, dynamic>.from(snap.value as Map);
+    final results = <Map<String, dynamic>>[];
+    for (final e in map.entries) {
+      final v = Map<String, dynamic>.from(e.value as Map);
+      final uname = (v['usernameLower'] ?? '') as String;
+      final emailL = (v['emailLower'] ?? '') as String;
+      final display = (v['displayName'] ?? '').toString().toLowerCase();
+      final emailMatch = emailL.contains(q) || emailL.startsWith(q);
+      final nameMatch = uname.startsWith(q) || uname.contains(q) || display.startsWith(q) || display.contains(q);
+      if (emailMatch || nameMatch) {
+        // mask email for privacy
+        final email = v['emailLower'] as String? ?? '';
+        v['emailMasked'] = email.isNotEmpty ? email.replaceRange(1, email.indexOf('@'), '*' * 3) : '';
+        results.add(v);
+        if (results.length >= limit) break;
+      }
+    }
+    return results;
+  }
+
+  Future<void> sendInvite({
+    required String tripId,
+    required String invitedGoogleId,
+    required String invitedEmail,
+    required String tripName,
+    String memberName = '',
+    String memberId = '',
+  }) async {
+    // 1. Write invite notification (so the user sees it in their inbox).
+    await _db.ref('invites/$invitedGoogleId/$tripId').set({
+      'tripId': tripId,
+      'tripName': tripName,
+      'fromDevice': _deviceId,
+      'fromUser': _userId,
+      'invitedEmail': invitedEmail,
+      'createdAt': DateTime.now().toIso8601String(),
+      'status': 'pending',
+    });
+
+    // 2. Register this trip under the invited user's path so restoreTrips()
+    //    picks it up when they log in — even before they accept the invite.
+    await _db.ref('users/$invitedGoogleId/trips/$tripId').set(true);
+
+    // 3. If a memberId was provided, the member row was already created by the
+    //    caller. Push it to the invited user's trip so they see themselves.
+    //    (The member op is already in the op-log and will be pulled by
+    //    restoreTrips → pullAllOps.)
+  }
+
+  Stream<Map<String, dynamic>> watchInvites(String googleId) {
+    return _db.ref('invites/$googleId').onValue.map((e) {
+      if (e.snapshot.value == null) return <String, dynamic>{};
+      return Map<String, dynamic>.from(e.snapshot.value as Map);
+    });
+  }
+
+  Future<void> respondInvite({required String googleId, required String tripId, required bool accept}) async {
+    await _db.ref('invites/$googleId/$tripId/status').set(accept ? 'accepted' : 'declined');
+    if (!accept) {
+      await Future.delayed(const Duration(seconds: 1));
+      await _db.ref('invites/$googleId/$tripId').remove();
+    }
+  }
+
   /// Restores all trips this user/device is a member of.
   Future<int> restoreTrips() async {
     final refs = <String>[];
     if (_userId != null) refs.add('users/$_userId/trips');
     refs.add('devices/$_deviceId/trips');
 
-    int restored = 0;
+    final tripIds = <String>{};
     for (final r in refs) {
       final snap = await _db.ref(r).get();
       if (snap.exists && snap.value != null) {
         final map = Map<String, dynamic>.from(snap.value as Map);
-        for (final tripId in map.keys) {
-          final count = await pullAllOps(tripId);
-          if (count > 0) restored++;
+        tripIds.addAll(map.keys);
+      }
+    }
+
+    // Also scan all trips for members matching this device or user identity.
+    // This covers the case where another user added us as a member but we
+    // haven't pulled the trip yet (e.g., they added us by email).
+    final allTripsSnap = await _db.ref('trips').get();
+    if (allTripsSnap.exists && allTripsSnap.value != null) {
+      final allTrips = Map<String, dynamic>.from(allTripsSnap.value as Map);
+      for (final tripEntry in allTrips.entries) {
+        final tripId = tripEntry.key;
+        if (tripIds.contains(tripId)) continue;
+        final membersSnap = await _db.ref('trips/$tripId/members').get();
+        if (!membersSnap.exists || membersSnap.value == null) continue;
+        final members = Map<String, dynamic>.from(membersSnap.value as Map);
+        for (final mEntry in members.entries) {
+          final m = Map<String, dynamic>.from(mEntry.value as Map);
+          final mDevice = m['deviceId'] as String? ?? '';
+          final mEmail = m['emailLower'] as String? ?? '';
+          final mGoogleId = m['googleId'] as String? ?? '';
+          if (mDevice == _deviceId ||
+              (_userId != null && mGoogleId == _userId) ||
+              (_userId != null && mEmail == _userId)) {
+            tripIds.add(tripId);
+            break;
+          }
         }
       }
+    }
+
+    int restored = 0;
+    for (final tripId in tripIds) {
+      final count = await pullAllOps(tripId);
+      if (count > 0) restored++;
     }
     return restored;
   }
@@ -171,6 +319,7 @@ class CloudSyncService {
 
     final opsData = Map<String, dynamic>.from(snapshot.value as Map);
     var applied = 0;
+    var memberAdded = false;
 
     for (final entry in opsData.entries) {
       final opData = Map<String, dynamic>.from(entry.value as Map);
@@ -183,8 +332,9 @@ class CloudSyncService {
         ops: [op],
         timestamp: op.createdAt,
       );
-      final count = await _syncService.processPayload(payload);
-      applied += count;
+      final result = await _syncService.processPayload(payload);
+      applied += result.opsApplied;
+      if (result.memberAdded) memberAdded = true;
     }
 
     if (applied > 0) {
@@ -193,6 +343,9 @@ class CloudSyncService {
         lastSync: DateTime.now(),
         opsPulled: applied,
       ));
+      if (memberAdded && onMemberAdded != null) {
+        onMemberAdded!(tripId);
+      }
     }
 
     return applied;
@@ -221,8 +374,8 @@ class CloudSyncService {
         ops: [op],
         timestamp: op.createdAt,
       );
-      final count = await _syncService.processPayload(payload);
-      applied += count;
+      final result = await _syncService.processPayload(payload);
+      applied += result.opsApplied;
     }
 
     return applied;
@@ -261,18 +414,44 @@ class CloudSyncService {
         timestamp: op.createdAt,
       );
 
-      _syncService.processPayload(payload).then((count) {
-        if (count > 0) {
+      _syncService.processPayload(payload).then((result) {
+        if (result.opsApplied > 0) {
           controller.add(SyncEvent(
             type: SyncEventType.synced,
             tripId: tripId,
-            opsApplied: count,
+            opsApplied: result.opsApplied,
           ));
+          if (result.memberAdded && onMemberAdded != null) {
+            onMemberAdded!(tripId);
+          }
         }
       });
     });
 
     return controller.stream;
+  }
+
+  final _activeListeners = <String, StreamSubscription>{};
+
+  /// Start listening for real-time updates on [tripId].
+  /// Idempotent — calling again for the same trip is a no-op.
+  void startListening(String tripId) {
+    if (_activeListeners.containsKey(tripId)) return;
+    final sub = listenForOps(tripId).listen((_) {});
+    _activeListeners[tripId] = sub;
+  }
+
+  /// Stop listening for real-time updates on [tripId].
+  void stopListening(String tripId) {
+    _activeListeners.remove(tripId)?.cancel();
+  }
+
+  /// Stop all active listeners.
+  void stopAllListeners() {
+    for (final sub in _activeListeners.values) {
+      sub.cancel();
+    }
+    _activeListeners.clear();
   }
 
   // ---------------------------------------------------------------------------

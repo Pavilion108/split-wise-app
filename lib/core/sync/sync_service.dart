@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 
@@ -60,8 +61,10 @@ class SyncService {
 
   /// Apply received sync payload to local database.
   /// Returns the number of new ops applied.
-  Future<int> processPayload(SyncPayload payload) async {
+  Future<SyncResult> processPayload(SyncPayload payload) async {
     var applied = 0;
+    var memberAdded = false;
+    String? memberAddedTripId;
 
     await _db.transaction(() async {
       for (final op in payload.ops) {
@@ -86,6 +89,11 @@ class SyncService {
         // Apply the operation to the actual table.
         await _applyOp(payload.tripId, op);
         applied++;
+
+        if (op.opType == 'member') {
+          memberAdded = true;
+          memberAddedTripId = payload.tripId;
+        }
       }
     });
 
@@ -104,7 +112,7 @@ class SyncService {
       ));
     }
 
-    return applied;
+    return SyncResult(opsApplied: applied, memberAdded: memberAdded, tripId: memberAddedTripId);
   }
 
   /// Build a compact summary for sync negotiation.
@@ -147,6 +155,12 @@ class SyncService {
       case 'settlement':
         await _applySettlementOp(tripId, payload);
         break;
+      case 'settlement_edited':
+        await _applySettlementEditedOp(tripId, payload);
+        break;
+      case 'settlement_deleted':
+        await _applyDeleteOp(op.opType, payload);
+        break;
       case 'category':
         await _applyCategoryOp(tripId, payload);
         break;
@@ -158,7 +172,8 @@ class SyncService {
         break;
       case 'expense_deleted':
       case 'member_deleted':
-        await _applyDeleteOp(payload);
+      case 'trip_deleted':
+        await _applyDeleteOp(op.opType, payload);
         break;
     }
   }
@@ -180,9 +195,30 @@ class SyncService {
   Future<void> _applyMemberOp(String tripId, Map<String, dynamic> p) async {
     final id = p['id'] as String;
     final deleted = p['deleted'] == true;
-    final existing = await (_db.select(_db.members)
+    final googleId = p['googleId'] as String? ?? '';
+    final emailLower = p['emailLower'] as String? ?? '';
+
+    // Try to find existing member by id, googleId, or emailLower.
+    var existing = await (_db.select(_db.members)
           ..where((m) => m.id.equals(id)))
         .getSingleOrNull();
+
+    if (existing == null && googleId.isNotEmpty) {
+      existing = await (_db.select(_db.members)
+            ..where((m) =>
+                m.tripId.equals(tripId) &
+                m.googleId.equals(googleId) &
+                m.deleted.equals(false)))
+          .getSingleOrNull();
+    }
+    if (existing == null && emailLower.isNotEmpty) {
+      existing = await (_db.select(_db.members)
+            ..where((m) =>
+                m.tripId.equals(tripId) &
+                m.emailLower.equals(emailLower) &
+                m.deleted.equals(false)))
+          .getSingleOrNull();
+    }
 
     if (existing == null && !deleted) {
       await _db.into(_db.members).insert(MembersCompanion(
@@ -191,11 +227,28 @@ class SyncService {
             name: Value(p['name'] ?? ''),
             deviceId: Value(p['deviceId'] ?? ''),
             avatarColor: Value(p['avatarColor'] ?? 0xFF1E88E5),
+            avatarAsset: Value(p['avatarAsset'] ?? ''),
+            googleId: Value(googleId),
+            emailLower: Value(emailLower),
             joinedAt: Value(DateTime.parse(p['joinedAt'])),
           ));
-    } else if (deleted) {
-      await (_db.update(_db.members)..where((m) => m.id.equals(id)))
-          .write(const MembersCompanion(deleted: Value(true)));
+    } else if (existing != null) {
+      final existingId = existing.id;
+      if (deleted) {
+        await (_db.update(_db.members)..where((m) => m.id.equals(existingId)))
+            .write(const MembersCompanion(deleted: Value(true)));
+      } else {
+        // update avatar / identity if changed
+        await (_db.update(_db.members)..where((m) => m.id.equals(existingId))).write(
+          MembersCompanion(
+            avatarAsset: p['avatarAsset'] != null ? Value(p['avatarAsset'] as String) : const Value.absent(),
+            googleId: googleId.isNotEmpty ? Value(googleId) : const Value.absent(),
+            emailLower: emailLower.isNotEmpty ? Value(emailLower) : const Value.absent(),
+            avatarColor: p['avatarColor'] != null ? Value(p['avatarColor'] as int) : const Value.absent(),
+            name: p['name'] != null ? Value(p['name'] as String) : const Value.absent(),
+          ),
+        );
+      }
     }
   }
 
@@ -206,20 +259,73 @@ class SyncService {
         .getSingleOrNull();
 
     if (existing == null) {
-      await _db.into(_db.expenses).insert(ExpensesCompanion(
-            id: Value(id),
-            tripId: Value(tripId),
-            authorId: Value(p['authorId'] ?? ''),
-            category: Value(p['category'] ?? ''),
-            amount: Value((p['amount'] as num?)?.toDouble() ?? 0),
-            currency: Value(p['currency'] ?? 'INR'),
-            convertedAmount:
-                Value((p['convertedAmount'] as num?)?.toDouble() ?? 0),
-            rateUsed: Value((p['rateUsed'] as num?)?.toDouble() ?? 1),
-            note: Value(p['note'] ?? ''),
-            splitType: Value(p['splitType'] ?? 'equal'),
-            createdAt: Value(DateTime.parse(p['createdAt'])),
-          ));
+      // New expense — insert + splits atomically.
+      await _db.transaction(() async {
+        await _db.into(_db.expenses).insert(ExpensesCompanion(
+              id: Value(id),
+              tripId: Value(tripId),
+              authorId: Value(p['authorId'] ?? ''),
+              category: Value(p['category'] ?? ''),
+              amount: Value((p['amount'] as num?)?.toDouble() ?? 0),
+              currency: Value(p['currency'] ?? 'INR'),
+              convertedAmount:
+                  Value((p['convertedAmount'] as num?)?.toDouble() ?? 0),
+              rateUsed: Value((p['rateUsed'] as num?)?.toDouble() ?? 1),
+              note: Value(p['note'] ?? ''),
+              splitType: Value(p['splitType'] ?? 'equal'),
+              createdAt: Value(DateTime.parse(p['createdAt'])),
+            ));
+
+        // Apply split rows from the payload.
+        final splitsRaw = p['splits'] as List?;
+        if (splitsRaw != null && splitsRaw.isNotEmpty) {
+          for (final s in splitsRaw) {
+            final sm = Map<String, dynamic>.from(s as Map);
+            await _db.into(_db.splitRows).insert(SplitRowsCompanion.insert(
+                  id: const Uuid().v4(),
+                  expenseId: id,
+                  memberId: sm['memberId'] as String,
+                  shareAmount: (sm['shareAmount'] as num?)?.toDouble() ?? 0,
+                  shareConverted:
+                      (sm['shareConverted'] as num?)?.toDouble() ?? 0,
+                ));
+          }
+        }
+      });
+    } else {
+      // Existing expense — update atomically within a transaction
+      // so the balance engine doesn't recompute with stale splits.
+      await _db.transaction(() async {
+        await (_db.update(_db.expenses)..where((e) => e.id.equals(id))).write(
+          ExpensesCompanion(
+            amount: p['amount'] != null ? Value((p['amount'] as num).toDouble()) : const Value.absent(),
+            currency: p['currency'] != null ? Value(p['currency'] as String) : const Value.absent(),
+            convertedAmount: p['convertedAmount'] != null ? Value((p['convertedAmount'] as num).toDouble()) : const Value.absent(),
+            rateUsed: p['rateUsed'] != null ? Value((p['rateUsed'] as num).toDouble()) : const Value.absent(),
+            note: p['note'] != null ? Value(p['note'] as String) : const Value.absent(),
+            splitType: p['splitType'] != null ? Value(p['splitType'] as String) : const Value.absent(),
+            category: p['category'] != null ? Value(p['category'] as String) : const Value.absent(),
+            editedAt: Value(DateTime.now()),
+          ),
+        );
+
+        // Apply split rows inside the same transaction.
+        final splitsRaw = p['splits'] as List?;
+        if (splitsRaw != null && splitsRaw.isNotEmpty) {
+          await (_db.splitRows.delete()..where((s) => s.expenseId.equals(id))).go();
+          for (final s in splitsRaw) {
+            final sm = Map<String, dynamic>.from(s as Map);
+            await _db.into(_db.splitRows).insert(SplitRowsCompanion.insert(
+                  id: const Uuid().v4(),
+                  expenseId: id,
+                  memberId: sm['memberId'] as String,
+                  shareAmount: (sm['shareAmount'] as num?)?.toDouble() ?? 0,
+                  shareConverted:
+                      (sm['shareConverted'] as num?)?.toDouble() ?? 0,
+                ));
+          }
+        }
+      });
     }
   }
 
@@ -287,8 +393,36 @@ class SyncService {
     );
   }
 
-  Future<void> _applyDeleteOp(Map<String, dynamic> p) async {
-    // Soft delete is already in the op payload; the apply logic above handles it.
+  Future<void> _applyDeleteOp(String opType, Map<String, dynamic> p) async {
+    final id = p['id'] as String?;
+    if (id == null) return;
+
+    if (opType == 'expense_deleted') {
+      await (_db.update(_db.expenses)..where((e) => e.id.equals(id)))
+          .write(const ExpensesCompanion(deleted: Value(true)));
+    } else if (opType == 'member_deleted') {
+      await (_db.update(_db.members)..where((m) => m.id.equals(id)))
+          .write(const MembersCompanion(deleted: Value(true)));
+    } else if (opType == 'trip_deleted') {
+      await (_db.update(_db.trips)..where((t) => t.id.equals(id)))
+          .write(const TripsCompanion(deleted: Value(true)));
+    } else if (opType == 'settlement_deleted') {
+      await (_db.update(_db.settlements)..where((s) => s.id.equals(id)))
+          .write(const SettlementsCompanion(deleted: Value(true)));
+    }
+  }
+
+  Future<void> _applySettlementEditedOp(String tripId, Map<String, dynamic> p) async {
+    final id = p['id'] as String;
+    await (_db.update(_db.settlements)..where((s) => s.id.equals(id))).write(
+      SettlementsCompanion(
+        fromMemberId: p['fromMemberId'] != null ? Value(p['fromMemberId'] as String) : const Value.absent(),
+        toMemberId: p['toMemberId'] != null ? Value(p['toMemberId'] as String) : const Value.absent(),
+        amount: p['amount'] != null ? Value((p['amount'] as num).toDouble()) : const Value.absent(),
+        method: p['method'] != null ? Value(p['method'] as String) : const Value.absent(),
+        note: p['note'] != null ? Value(p['note'] as String) : const Value.absent(),
+      ),
+    );
   }
 
   void dispose() {
@@ -297,6 +431,18 @@ class SyncService {
     }
     _statusController.close();
   }
+}
+
+/// Result of processing a sync payload.
+class SyncResult {
+  const SyncResult({
+    required this.opsApplied,
+    required this.memberAdded,
+    this.tripId,
+  });
+  final int opsApplied;
+  final bool memberAdded;
+  final String? tripId;
 }
 
 class SyncPayload {

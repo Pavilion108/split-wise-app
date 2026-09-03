@@ -20,9 +20,22 @@ class LiveRate {
   final DateTime fetchedAt;
 }
 
+/// Cached rate with freshness metadata.
+class CachedRate {
+  const CachedRate({
+    required this.rate,
+    required this.fetchedAt,
+  });
+  final double rate;
+  final DateTime fetchedAt;
+}
+
 class CurrencyService {
   CurrencyService(this._db);
   final AppDatabase _db;
+
+  /// Maximum age for a cached rate to be considered fresh (7 days).
+  static const _stalenessDuration = Duration(days: 7);
 
   Future<double> convert({
     required double amount,
@@ -39,13 +52,41 @@ class CurrencyService {
     required String fromCurrency,
     required String toBase,
   }) async {
-    if (fromCurrency == toBase) return 1;
+    final cached = await getRateWithFreshness(
+      fromCurrency: fromCurrency,
+      toBase: toBase,
+    );
+    return cached?.rate;
+  }
+
+  /// Returns [CachedRate] with freshness info, or null if no cached rate.
+  Future<CachedRate?> getRateWithFreshness({
+    required String fromCurrency,
+    required String toBase,
+  }) async {
+    if (fromCurrency == toBase) {
+      return CachedRate(rate: 1, fetchedAt: DateTime.now());
+    }
     final row = await (_db.select(_db.rateCaches)
           ..where((r) =>
               r.baseCurrency.equals(toBase) &
               r.currency.equals(fromCurrency)))
         .getSingleOrNull();
-    return row?.rateInBase;
+    if (row == null) return null;
+    return CachedRate(rate: row.rateInBase, fetchedAt: row.fetchedAt);
+  }
+
+  /// Returns true if the cached rate is older than [_stalenessDuration].
+  Future<bool> isRateStale({
+    required String fromCurrency,
+    required String toBase,
+  }) async {
+    final cached = await getRateWithFreshness(
+      fromCurrency: fromCurrency,
+      toBase: toBase,
+    );
+    if (cached == null) return true;
+    return DateTime.now().difference(cached.fetchedAt) > _stalenessDuration;
   }
 
   Future<void> setRate({

@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../providers/app_provider.dart';
 
 Widget buildSignInButton(BuildContext context) {
-  return Consumer(
-    builder: (context, ref, child) {
-      return FilledButton.icon(
-        onPressed: () async {
-          final result = await ref.read(authServiceProvider).signIn();
-          if (result.error != null && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(result.error!)),
-            );
-          }
-        },
-        icon: const Icon(Icons.g_mobiledata, size: 24),
-        label: const Text('Sign in with Google'),
-      );
+  final cs = Theme.of(context).colorScheme;
+
+  return FilledButton.icon(
+    onPressed: () async {
+      final auth = ProviderScope.containerOf(context).read(authServiceProvider);
+      final result = await auth.signIn();
+      if (context.mounted && !result.success && result.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign in failed: ${result.error}')),
+        );
+      }
     },
+    icon: const Icon(Icons.login_rounded),
+    label: const Text('Sign in with Google'),
+    style: FilledButton.styleFrom(
+      backgroundColor: cs.primary,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+    ),
   );
 }

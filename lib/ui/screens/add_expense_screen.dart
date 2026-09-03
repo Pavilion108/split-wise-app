@@ -12,10 +12,12 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
     super.key,
     required this.tripId,
     required this.baseCurrency,
+    this.editExpense,
   });
 
   final String tripId;
   final String baseCurrency;
+  final Expense? editExpense;
 
   @override
   ConsumerState<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -31,6 +33,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String _splitType = 'equal';
   List<String> _subsetIds = [];
   bool _saving = false;
+  String? _paidById;
+  bool _paidByIdInitialized = false;
+
+  bool get _isEditing => widget.editExpense != null;
 
   /// Exchange rate (1 [_currency] = [_rate] [baseCurrency]).
   double? _rate;
@@ -38,6 +44,20 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   bool _fetchingRate = false;
   DateTime? _rateFetchedAt;
   String? _rateError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      final e = widget.editExpense!;
+      _amountCtrl.text = e.amount.toString();
+      _noteCtrl.text = e.note;
+      _category = e.category;
+      _currency = e.currency;
+      _splitType = e.splitType;
+      _paidById = e.authorId;
+    }
+  }
 
   @override
   void dispose() {
@@ -53,7 +73,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Expense'),
+        title: Text(_isEditing ? 'Edit Expense' : 'Add Expense'),
         actions: [
           TextButton(
             onPressed: _saving ? null : _submit,
@@ -88,6 +108,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Widget _buildForm(List<Member> members, List<Category> categories) {
     final myDeviceId = ref.read(deviceIdentityProvider).id;
     final me = members.firstWhereOrNull((m) => m.deviceId == myDeviceId);
+
+    // Default paid by to current user on first render.
+    if (!_isEditing && !_paidByIdInitialized && me != null) {
+      _paidByIdInitialized = true;
+      _paidById = me.id;
+    }
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -171,6 +197,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             _subsetIds = [];
           }),
         ),
+        if (_splitType == 'equal') ...[
+          const SizedBox(height: 6),
+          Text(
+            'Split equally among all ${members.length} current members. '
+            'New members who join later will be included in future equal splits.',
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
+          ),
+        ],
         if (_splitType == 'custom') ...[
           const SizedBox(height: 12),
           Text('Who splits?',
@@ -198,25 +232,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ),
         ],
         const SizedBox(height: 16),
-        if (me != null)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .primaryContainer
-                  .withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.person, size: 20),
-                const SizedBox(width: 8),
-                Text('Paid by: ${me.name}',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
+        DropdownButtonFormField<String>(
+          decoration: const InputDecoration(labelText: 'Paid by'),
+          items: [
+            for (final m in members)
+              DropdownMenuItem(value: m.id, child: Text(m.name)),
+          ],
+          value: _paidById,
+          onChanged: (v) => setState(() => _paidById = v),
+        ),
         const SizedBox(height: 16),
         TextField(
           controller: _noteCtrl,
@@ -326,7 +350,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     if (_currency == widget.baseCurrency) return;
     setState(() => _fetchingRate = true);
     try {
-      final live = await ref.read(currencyServiceProvider).fetchLiveRate(
+      final currencyService = ref.read(currencyServiceProvider);
+
+      // Check if cached rate is stale and warn.
+      final isStale = await currencyService.isRateStale(
+        fromCurrency: _currency,
+        toBase: widget.baseCurrency,
+      );
+
+      final live = await currencyService.fetchLiveRate(
             fromCurrency: _currency,
             toBase: widget.baseCurrency,
           );
@@ -334,7 +366,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         setState(() {
           _rate = live.rate;
           _rateFetchedAt = live.fetchedAt;
-          _rateError = null;
+          _rateError = isStale ? 'Previous rate was stale (>7 days old). Using fresh rate.' : null;
         });
       }
     } catch (e) {
@@ -373,25 +405,61 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final me = members.firstWhereOrNull(
       (m) => m.deviceId == ref.read(deviceIdentityProvider).id,
     );
-    if (me == null) return;
+
+    // Default paidById to current device's member on first submit.
+    if (_paidById == null) _paidById = me?.id;
+    final paidById = _paidById;
+    if (paidById == null) return;
 
     setState(() => _saving = true);
 
     try {
-      await ref.read(expenseRepositoryProvider).addExpense(
-            tripId: widget.tripId,
-            authorId: me.id,
-            category: _category,
-            amount: amount,
-            currency: _currency,
-            baseCurrency: widget.baseCurrency,
-            splitType: _splitType,
-            allMemberIds: members.map((m) => m.id).toList(),
-            subsetIds: _splitType == 'custom' ? _subsetIds : null,
-            note: _noteCtrl.text.trim(),
-            rate: _rate,
-            rateSource: _rateMode == 'auto' ? 'live' : 'manual',
+      if (_isEditing) {
+        final old = widget.editExpense!;
+        final changes = <String>[];
+        if (old.amount != amount) changes.add('Amount: ${formatMoney(old.amount, old.currency)} → ${formatMoney(amount, _currency)}');
+        if (old.category != _category) changes.add('Category: ${old.category} → $_category');
+        if (old.currency != _currency) changes.add('Currency: ${old.currency} → $_currency');
+        if (old.note != _noteCtrl.text.trim()) changes.add('Note: "${old.note}" → "${_noteCtrl.text.trim()}"');
+        if (old.splitType != _splitType) changes.add('Split: ${old.splitType} → $_splitType');
+
+        await ref.read(expenseRepositoryProvider).editExpense(
+          original: old,
+          amount: amount,
+          currency: _currency,
+          category: _category,
+          splitType: _splitType,
+          subsetIds: _splitType == 'custom' ? _subsetIds : null,
+          note: _noteCtrl.text.trim(),
+          rate: _rate,
+          baseCurrency: widget.baseCurrency,
+          allMemberIds: members.map((m) => m.id).toList(),
+        );
+
+        if (mounted && changes.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Updated: ${changes.join(", ")}'),
+              duration: const Duration(seconds: 3),
+            ),
           );
+        }
+      } else {
+        await ref.read(expenseRepositoryProvider).addExpense(
+          tripId: widget.tripId,
+          authorId: paidById,
+          category: _category,
+          amount: amount,
+          currency: _currency,
+          baseCurrency: widget.baseCurrency,
+          splitType: _splitType,
+          allMemberIds: members.map((m) => m.id).toList(),
+          subsetIds: _splitType == 'custom' ? _subsetIds : null,
+          note: _noteCtrl.text.trim(),
+          rate: _rate,
+          rateSource: _rateMode == 'auto' ? 'live' : 'manual',
+        );
+      }
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {

@@ -37,6 +37,9 @@ class Members extends Table {
   TextColumn get name => text()();
   TextColumn get deviceId => text()();
   IntColumn get avatarColor => integer().withDefault(const Constant(0xFF1E88E5))();
+  TextColumn get avatarAsset => text().withDefault(const Constant(''))();
+  TextColumn get googleId => text().withDefault(const Constant(''))();
+  TextColumn get emailLower => text().withDefault(const Constant(''))();
   DateTimeColumn get joinedAt => dateTime()();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
 
@@ -154,7 +157,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -172,6 +175,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(settlements, settlements.transactionRef);
             await m.addColumn(settlements, settlements.status);
             await m.addColumn(settlements, settlements.verifiedAt);
+          }
+          if (from < 7) {
+            await m.addColumn(members, members.avatarAsset);
+            await m.addColumn(members, members.googleId);
+            await m.addColumn(members, members.emailLower);
           }
         },
       );

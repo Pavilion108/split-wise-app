@@ -21,7 +21,7 @@ const List<Map<String, String>> kDefaultCurrencies = [
   {'code': 'LKR', 'symbol': 'Rs', 'name': 'Sri Lankan Rupee'},
   {'code': 'IDR', 'symbol': 'Rp', 'name': 'Indonesian Rupiah'},
   {'code': 'VND', 'symbol': '₫', 'name': 'Vietnamese Dong'},
-  {'code': 'EUR', 'symbol': '€', 'name': 'Euro'},
+  {'code': 'ZAR', 'symbol': 'R', 'name': 'South African Rand'},
 ];
 
 const List<String> kDefaultCategories = [
@@ -73,5 +73,5 @@ String formatMoney(double amount, String currencyCode) {
   }
 
   if (frac == 0) return '$sign$symbol${groupDigits(whole)}';
-  return '$sign$symbol${groupDigits(whole)}.$frac';
+  return '$sign$symbol${groupDigits(whole)}.${frac.toString().padLeft(2, '0')}';
 }

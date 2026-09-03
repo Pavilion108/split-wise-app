@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/sync/invite_code.dart';
+
 /// WhatsApp integration service.
 /// Uses deep linking to open WhatsApp for group creation and messaging.
 /// WhatsApp does not provide a public API for group creation,
@@ -141,13 +143,17 @@ class WhatsAppService {
     required String tripName,
     required String inviteCode,
   }) {
-    return '🎉 Create WhatsApp Group: "$tripName"\n\n'
-        'Steps:\n'
-        '1. Open WhatsApp → New Group\n'
-        '2. Add members from your trip\n'
-        '3. Group name: $tripName\n'
-        '4. Share invite code: $inviteCode\n\n'
-        'Split Wise will send expense updates here.';
+    return 'Hey everyone! Welcome to "$tripName" 🎉\n\n'
+        'I\'ve set up our trip on Split Wise so we can easily '
+        'track expenses and stay fair with each other.\n\n'
+        'Here\'s how to join:\n'
+        '1. Visit ${InviteCode.websiteUrl}\n'
+        '2. Sign in with your Google account\n'
+        '3. Enter this invite code:\n\n'
+        '🔑 $inviteCode\n\n'
+        'Once you\'re in, you can add expenses and see who owes whom. '
+        'No more awkward "you owe me" conversations! 😄\n\n'
+        'Let\'s have an amazing trip! ✈️';
   }
 
   String _buildExpenseMessage({

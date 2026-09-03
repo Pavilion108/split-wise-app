@@ -38,11 +38,14 @@ class _SplitWiseAppState extends ConsumerState<SplitWiseApp> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authServiceProvider);
+    final settings = ref.watch(settingsServiceProvider);
 
     return MaterialApp(
       title: 'Split Wise',
       debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
+      theme: buildLightTheme(),
+      darkTheme: buildDarkTheme(),
+      themeMode: settings.themeMode,
       home: _checking
           ? const Scaffold(
               body: Center(child: CircularProgressIndicator()),

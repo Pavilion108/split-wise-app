@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 
-/// Generates a6-character invite code from trip id + secret.
+/// Generates a 6-character invite code from trip id + secret.
 /// The code is deterministic: same trip always produces the same code.
 /// The code is shareable via WhatsApp/Gmail and typed manually.
 class InviteCode {
@@ -12,7 +12,10 @@ class InviteCode {
   static const _chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   static final _rand = Random.secure();
 
-  /// Generate a random6-char code for a new trip.
+  /// The live website URL where users can join trips.
+  static const websiteUrl = 'https://splitwiser-26.web.app';
+
+  /// Generate a random 6-char code for a new trip.
   static String generate() {
     return List.generate(6, (_) => _chars[_rand.nextInt(_chars.length)]).join();
   }
@@ -40,7 +43,7 @@ class InviteCode {
   static Uri buildJoinLink(String code, {String? tripName}) {
     return Uri(
       scheme: 'https',
-      host: 'splitwise.app',
+      host: 'splitwiser-26.web.app',
       path: '/join/$code',
       queryParameters: {
         if (tripName != null) 'name': tripName,
@@ -56,11 +59,13 @@ class InviteCode {
     required String baseCurrency,
   }) {
     final link = buildJoinLink(code, tripName: tripName);
-    return 'Join my trip "$tripName" on Split Wise!\n\n'
-        'Code: $code\n'
-        'Currency: $baseCurrency\n'
-        'Created by: $creatorName\n\n'
-        'Open the link or enter the code in the app:\n$link';
+    return 'Hey! Join "$tripName" on Split Wise to track our expenses together.\n\n'
+        '\u{1F4B0} Trip: $tripName\n'
+        '\u{1F511} Code: $code\n'
+        '\u{1F4B1} Currency: $baseCurrency\n'
+        '\u{1F464} Created by: $creatorName\n\n'
+        'Open the app or visit the website:\n$websiteUrl\n\n'
+        'Then enter code: $code';
   }
 
   /// Build a plain text message for Gmail/other sharing.
@@ -70,7 +75,6 @@ class InviteCode {
     required String creatorName,
     required String baseCurrency,
   }) {
-    final link = buildJoinLink(code, tripName: tripName);
     return 'Split Wise Trip Invitation\n'
         '========================\n\n'
         'Trip: $tripName\n'
@@ -78,9 +82,18 @@ class InviteCode {
         'Currency: $baseCurrency\n'
         'Created by: $creatorName\n\n'
         'To join:\n'
-        '1. Install Split Wise app\n'
-        '2. Tap "Join Trip"\n'
+        '1. Open $websiteUrl\n'
+        '2. Sign in with Google\n'
         '3. Enter code: $code\n\n'
-        'Or click: $link';
+        'Or install the app and enter the code there.';
   }
+
+  /// Short text for quick clipboard copy.
+  static String copyableText({
+    required String code,
+    required String tripName,
+  }) =>
+      'Join "$tripName" on Split Wise!\n'
+      'Code: $code\n'
+      'Website: $websiteUrl';
 }

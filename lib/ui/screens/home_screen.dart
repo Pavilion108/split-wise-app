@@ -1,13 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
 import '../../core/platform/platform_detect.dart';
+import '../../core/sync/invite_code.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';
+import '../../services/version_service.dart';
 import '../widgets/app_install_banner.dart';
 import '../widgets/responsive_layout.dart';
+import 'profile_screen.dart';
 import 'trip_dashboard_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -19,29 +27,158 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _showInstallBanner = PlatformDetect.isWeb;
+  StreamSubscription<List<Trip>>? _tripSub;
 
   @override
   void initState() {
     super.initState();
     // Intelligently restore any trips from the cloud if the local database was wiped
     Future.microtask(() => ref.read(cloudSyncProvider).restoreTrips());
+    // Check for app updates
+    Future.microtask(() => _checkForUpdate());
+    // Start real-time listeners for all active trips so updates arrive
+    // even when the user is on the home screen.
+    Future.microtask(_startListenersForAllTrips);
+    // When a remote device adds a member, recompute splits locally.
+    Future.microtask(() {
+      ref.read(cloudSyncProvider).onMemberAdded = (tripId) {
+        ref.read(expenseRepositoryProvider).recomputeEqualSplits(tripId);
+      };
+    });
+    // Repair orphaned splits: expenses synced before the split-creation
+    // bug fix have no split rows. Recompute all trips on app load.
+    Future.microtask(_repairAllTrips);
+  }
+
+  Future<void> _repairAllTrips() async {
+    try {
+      final tripRepo = ref.read(tripRepositoryProvider);
+      final expenseRepo = ref.read(expenseRepositoryProvider);
+      final trips = await tripRepo.watchTrips().first;
+      for (final trip in trips) {
+        await expenseRepo.recomputeEqualSplits(trip.id);
+      }
+    } catch (_) {
+      // Non-critical — balance may be temporarily inaccurate.
+    }
+  }
+
+  @override
+  void dispose() {
+    _tripSub?.cancel();
+    ref.read(cloudSyncProvider).stopAllListeners();
+    super.dispose();
+  }
+
+  /// Listen to the trip list and dynamically manage real-time sync listeners.
+  void _startListenersForAllTrips() {
+    final tripRepo = ref.read(tripRepositoryProvider);
+    _tripSub = tripRepo.watchTrips().listen((trips) {
+      if (!mounted) return;
+      final cloudSync = ref.read(cloudSyncProvider);
+      final activeTripIds = <String>{for (final t in trips) t.id};
+      // Start listening for any new trips.
+      for (final id in activeTripIds) {
+        cloudSync.startListening(id);
+      }
+      // Stop listening for any trips that were removed.
+      // (CloudSyncService.startListening is idempotent.)
+    });
+  }
+
+  Future<void> _checkForUpdate() async {
+    final isNew = await VersionService.isNewVersion();
+    if (isNew && mounted) {
+      // Small delay to let the screen render first
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) {
+        final version = await VersionService.getCurrentVersion();
+        if (mounted) {
+          showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              icon: Icon(Icons.system_update_rounded, color: Theme.of(context).colorScheme.primary, size: 40),
+              title: Text('What\'s New in v$version'),
+              content: SingleChildScrollView(
+                child: Text(VersionService.getWhatsNew()),
+              ),
+              actions: [
+                FilledButton(
+                  onPressed: () {
+                    VersionService.markVersionSeen();
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Got it!'),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final trips = ref.watch(tripRepositoryProvider).watchTrips();
     final isDesktop = ResponsiveLayout.isDesktop(context);
+    final auth = ref.watch(authServiceProvider);
+    final myGoogleId = auth.currentUser?.id ?? '';
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Split Wise',
             style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_rounded),
+            tooltip: 'Profile',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
           if (_showInstallBanner)
             AppInstallBanner(
               onDismiss: () => setState(() => _showInstallBanner = false),
+            ),
+          if (myGoogleId.isNotEmpty)
+            StreamBuilder<Map<String, dynamic>>(
+              stream: ref.watch(cloudSyncProvider).watchInvites(myGoogleId),
+              builder: (ctx, snap) {
+                final invites = snap.data ?? {};
+                final pending = invites.entries.where((e) => (e.value as Map)['status'] == 'pending').toList();
+                if (pending.isEmpty) return const SizedBox.shrink();
+                return Container(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2))),
+                  child: Column(
+                    children: pending.map((e) {
+                      final v = Map<String, dynamic>.from(e.value as Map);
+                      return ListTile(
+                        leading: const Icon(Icons.mail_rounded),
+                        title: Text('Invite: ${v['tripName'] ?? e.key}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        subtitle: const Text('Tap to accept', style: TextStyle(fontSize: 12)),
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          TextButton(onPressed: () => ref.read(cloudSyncProvider).respondInvite(googleId: myGoogleId, tripId: e.key, accept: false), child: const Text('Decline')),
+                          FilledButton(onPressed: () async {
+                            await ref.read(cloudSyncProvider).respondInvite(googleId: myGoogleId, tripId: e.key, accept: true);
+                            final tripId = e.key;
+                            await ref.read(cloudSyncProvider).pullAllOps(tripId);
+                            // Recompute splits now that we're a member.
+                            await ref.read(expenseRepositoryProvider).recomputeEqualSplits(tripId);
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Joined ${v['tripName']}')));
+                          }, child: const Text('Accept')),
+                        ]),
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
             ),
           Expanded(
             child: Center(
@@ -66,7 +203,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     return ListView.builder(
                       padding: const EdgeInsets.only(bottom: 96, top: 8),
                       itemCount: list.length,
-                      itemBuilder: (_, i) => _TripTile(trip: list[i]),
+                      itemBuilder: (_, i) => _TripTile(trip: list[i])
+                          .animate()
+                          .fadeIn(duration: 300.ms, delay: (i * 50).ms)
+                          .slideX(begin: 0.05, end: 0, duration: 300.ms, delay: (i * 50).ms),
                     );
                   },
                 ),
@@ -102,6 +242,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _createTrip(BuildContext context, WidgetRef ref) async {
     final nameCtrl = TextEditingController();
     final memberCtrl = TextEditingController();
+    final whatsappCtrl = TextEditingController();
     String currency = 'INR';
 
     await showDialog<bool>(
@@ -143,6 +284,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     hintText: 'How members see you',
                   ),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: whatsappCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'WhatsApp group link (optional)',
+                    hintText: 'https://chat.whatsapp.com/...',
+                  ),
+                ),
               ],
             ),
           ),
@@ -164,6 +313,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   baseCurrency: currency,
                   memberName: memberCtrl.text.trim(),
                   deviceId: deviceId,
+                  whatsappGroupLink: whatsappCtrl.text.trim(),
                 );
                 if (ctx.mounted) {
                   Navigator.pop(ctx, true);
@@ -180,6 +330,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showInviteCode(BuildContext context, WidgetRef ref, Trip trip) {
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -193,7 +344,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
+                  color: cs.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -204,7 +355,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              // Copy code button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(
+                        ClipboardData(text: trip.inviteCode));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Code copied to clipboard')),
+                    );
+                  },
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: const Text('Copy Code'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Share button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    final text = InviteCode.copyableText(
+                      code: trip.inviteCode,
+                      tripName: trip.name,
+                    );
+                    SharePlus.instance.share(
+                      ShareParams(text: text),
+                    );
+                  },
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('Share'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                InviteCode.websiteUrl,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.outline,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
               if (trip.driveFolderLink.isNotEmpty) ...[
                 const Divider(),
                 const SizedBox(height: 8),
@@ -221,12 +414,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
               ],
-              Text(
-                'Or share via WhatsApp/Gmail',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
             ],
           ),
         ),
@@ -245,7 +433,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               if (ctx.mounted) Navigator.pop(ctx);
             },
             icon: const Icon(Icons.chat),
-            label: const Text('Create WhatsApp Group'),
+            label: const Text('WhatsApp'),
           ),
           FilledButton.tonal(
             onPressed: () {
@@ -266,7 +454,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _joinTrip(BuildContext context, WidgetRef ref) async {
     final codeCtrl = TextEditingController();
-    final nameCtrl = TextEditingController();
+    // Pre-fill name from Google profile if signed in.
+    final auth = ref.read(authServiceProvider);
+    final googleName = auth.currentUser?.displayName ?? '';
+    final nameCtrl = TextEditingController(text: googleName);
 
     await showDialog<bool>(
       context: context,
@@ -310,10 +501,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               if (code.isEmpty || name.isEmpty) return;
 
               final deviceId = ref.read(deviceIdentityProvider).id;
+              final myGoogleId = auth.currentUser?.id ?? '';
+              final myEmail = auth.currentUser?.email ?? '';
               final trip = await ref.read(tripRepositoryProvider).joinTrip(
                     inviteCode: code,
                     memberName: name,
                     deviceId: deviceId,
+                    googleId: myGoogleId,
+                    emailLower: myEmail.toLowerCase(),
                   );
 
               if (trip == null) {
@@ -324,6 +519,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 }
                 return;
               }
+
+              // Recompute splits now that we're a member.
+              await ref.read(expenseRepositoryProvider).recomputeEqualSplits(trip.id);
 
               if (ctx.mounted) {
                 Navigator.pop(ctx, true);
@@ -400,14 +598,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _TripTile extends StatelessWidget {
+class _TripTile extends ConsumerWidget {
   const _TripTile({required this.trip});
   final Trip trip;
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onLongPress: () async {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete Trip?'),
+            content: Text('"${trip.name}" will be hidden from your trips. You can rejoin later with the invite code.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true && context.mounted) {
+          await ref.read(tripRepositoryProvider).deleteTrip(trip.id);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"${trip.name}" deleted')));
+          }
+        }
+      },
+      child: Card(
+        child: ListTile(
         leading: CircleAvatar(
           backgroundColor: Theme.of(context).colorScheme.primary,
           child: Text(
@@ -430,6 +652,7 @@ class _TripTile extends StatelessWidget {
               TripDashboardScreen(tripId: trip.id, tripName: trip.name),
         )),
       ),
+    ),
     );
   }
 }
@@ -454,12 +677,12 @@ class _DesktopTripGrid extends StatelessWidget {
   }
 }
 
-class _TripCard extends StatelessWidget {
+class _TripCard extends ConsumerWidget {
   const _TripCard({required this.trip});
   final Trip trip;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -468,6 +691,26 @@ class _TripCard extends StatelessWidget {
           builder: (_) =>
               TripDashboardScreen(tripId: trip.id, tripName: trip.name),
         )),
+        onLongPress: () async {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Delete Trip?'),
+              content: Text('"${trip.name}" will be hidden. You can rejoin with the invite code.'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(backgroundColor: cs.error),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
+          );
+          if (confirmed == true && context.mounted) {
+            await ref.read(tripRepositoryProvider).deleteTrip(trip.id);
+          }
+        },
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

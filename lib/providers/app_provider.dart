@@ -12,10 +12,13 @@ import '../models/models.dart';
 import '../repositories/expense_repository.dart';
 import '../repositories/trip_repository.dart';
 import '../services/auth_service.dart';
+import '../services/avatar_service.dart';
 import '../services/balance_engine.dart';
 import '../services/currency_service.dart';
 import '../services/daily_brief_service.dart';
 import '../services/drive_service.dart';
+import '../services/settings_service.dart';
+import '../services/user_directory_service.dart';
 import '../services/whatsapp_service.dart';
 
 // Conditionally import platform-specific sync modules.
@@ -46,6 +49,10 @@ final currencyServiceProvider = Provider<CurrencyService>((ref) {
   return CurrencyService(ref.read(databaseProvider));
 });
 
+final settingsServiceProvider = ChangeNotifierProvider<SettingsService>((ref) {
+  return SettingsService();
+});
+
 // --- Auth ---
 
 final authServiceProvider = ChangeNotifierProvider<AuthService>((ref) {
@@ -62,6 +69,10 @@ final driveServiceProvider = Provider<DriveService>((ref) {
 
 final whatsAppServiceProvider = Provider<WhatsAppService>((ref) {
   return WhatsAppService();
+});
+
+final userDirectoryServiceProvider = Provider<UserDirectoryService>((ref) {
+  return UserDirectoryService();
 });
 
 // --- Sync ---

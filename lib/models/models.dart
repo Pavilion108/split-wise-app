@@ -49,6 +49,9 @@ class Member {
     required this.name,
     required this.deviceId,
     required this.avatarColor,
+    this.avatarAsset = '',
+    this.googleId = '',
+    this.emailLower = '',
     required this.joinedAt,
     this.deleted = false,
   });
@@ -59,6 +62,9 @@ class Member {
         name: row.name,
         deviceId: row.deviceId,
         avatarColor: row.avatarColor,
+        avatarAsset: row.avatarAsset,
+        googleId: row.googleId,
+        emailLower: row.emailLower,
         joinedAt: row.joinedAt,
         deleted: row.deleted,
       );
@@ -68,6 +74,9 @@ class Member {
   final String name;
   final String deviceId;
   final int avatarColor;
+  final String avatarAsset;
+  final String googleId;
+  final String emailLower;
   final DateTime joinedAt;
   final bool deleted;
 }

@@ -742,6 +742,42 @@ class $MembersTable extends Members with TableInfo<$MembersTable, MemberRow> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0xFF1E88E5),
   );
+  static const VerificationMeta _avatarAssetMeta = const VerificationMeta(
+    'avatarAsset',
+  );
+  @override
+  late final GeneratedColumn<String> avatarAsset = GeneratedColumn<String>(
+    'avatar_asset',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _googleIdMeta = const VerificationMeta(
+    'googleId',
+  );
+  @override
+  late final GeneratedColumn<String> googleId = GeneratedColumn<String>(
+    'google_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _emailLowerMeta = const VerificationMeta(
+    'emailLower',
+  );
+  @override
+  late final GeneratedColumn<String> emailLower = GeneratedColumn<String>(
+    'email_lower',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _joinedAtMeta = const VerificationMeta(
     'joinedAt',
   );
@@ -775,6 +811,9 @@ class $MembersTable extends Members with TableInfo<$MembersTable, MemberRow> {
     name,
     deviceId,
     avatarColor,
+    avatarAsset,
+    googleId,
+    emailLower,
     joinedAt,
     deleted,
   ];
@@ -828,6 +867,27 @@ class $MembersTable extends Members with TableInfo<$MembersTable, MemberRow> {
         ),
       );
     }
+    if (data.containsKey('avatar_asset')) {
+      context.handle(
+        _avatarAssetMeta,
+        avatarAsset.isAcceptableOrUnknown(
+          data['avatar_asset']!,
+          _avatarAssetMeta,
+        ),
+      );
+    }
+    if (data.containsKey('google_id')) {
+      context.handle(
+        _googleIdMeta,
+        googleId.isAcceptableOrUnknown(data['google_id']!, _googleIdMeta),
+      );
+    }
+    if (data.containsKey('email_lower')) {
+      context.handle(
+        _emailLowerMeta,
+        emailLower.isAcceptableOrUnknown(data['email_lower']!, _emailLowerMeta),
+      );
+    }
     if (data.containsKey('joined_at')) {
       context.handle(
         _joinedAtMeta,
@@ -871,6 +931,18 @@ class $MembersTable extends Members with TableInfo<$MembersTable, MemberRow> {
         DriftSqlType.int,
         data['${effectivePrefix}avatar_color'],
       )!,
+      avatarAsset: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}avatar_asset'],
+      )!,
+      googleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}google_id'],
+      )!,
+      emailLower: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}email_lower'],
+      )!,
       joinedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}joined_at'],
@@ -894,6 +966,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
   final String name;
   final String deviceId;
   final int avatarColor;
+  final String avatarAsset;
+  final String googleId;
+  final String emailLower;
   final DateTime joinedAt;
   final bool deleted;
   const MemberRow({
@@ -902,6 +977,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
     required this.name,
     required this.deviceId,
     required this.avatarColor,
+    required this.avatarAsset,
+    required this.googleId,
+    required this.emailLower,
     required this.joinedAt,
     required this.deleted,
   });
@@ -913,6 +991,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
     map['name'] = Variable<String>(name);
     map['device_id'] = Variable<String>(deviceId);
     map['avatar_color'] = Variable<int>(avatarColor);
+    map['avatar_asset'] = Variable<String>(avatarAsset);
+    map['google_id'] = Variable<String>(googleId);
+    map['email_lower'] = Variable<String>(emailLower);
     map['joined_at'] = Variable<DateTime>(joinedAt);
     map['deleted'] = Variable<bool>(deleted);
     return map;
@@ -925,6 +1006,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
       name: Value(name),
       deviceId: Value(deviceId),
       avatarColor: Value(avatarColor),
+      avatarAsset: Value(avatarAsset),
+      googleId: Value(googleId),
+      emailLower: Value(emailLower),
       joinedAt: Value(joinedAt),
       deleted: Value(deleted),
     );
@@ -941,6 +1025,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
       name: serializer.fromJson<String>(json['name']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
       avatarColor: serializer.fromJson<int>(json['avatarColor']),
+      avatarAsset: serializer.fromJson<String>(json['avatarAsset']),
+      googleId: serializer.fromJson<String>(json['googleId']),
+      emailLower: serializer.fromJson<String>(json['emailLower']),
       joinedAt: serializer.fromJson<DateTime>(json['joinedAt']),
       deleted: serializer.fromJson<bool>(json['deleted']),
     );
@@ -954,6 +1041,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
       'name': serializer.toJson<String>(name),
       'deviceId': serializer.toJson<String>(deviceId),
       'avatarColor': serializer.toJson<int>(avatarColor),
+      'avatarAsset': serializer.toJson<String>(avatarAsset),
+      'googleId': serializer.toJson<String>(googleId),
+      'emailLower': serializer.toJson<String>(emailLower),
       'joinedAt': serializer.toJson<DateTime>(joinedAt),
       'deleted': serializer.toJson<bool>(deleted),
     };
@@ -965,6 +1055,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
     String? name,
     String? deviceId,
     int? avatarColor,
+    String? avatarAsset,
+    String? googleId,
+    String? emailLower,
     DateTime? joinedAt,
     bool? deleted,
   }) => MemberRow(
@@ -973,6 +1066,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
     name: name ?? this.name,
     deviceId: deviceId ?? this.deviceId,
     avatarColor: avatarColor ?? this.avatarColor,
+    avatarAsset: avatarAsset ?? this.avatarAsset,
+    googleId: googleId ?? this.googleId,
+    emailLower: emailLower ?? this.emailLower,
     joinedAt: joinedAt ?? this.joinedAt,
     deleted: deleted ?? this.deleted,
   );
@@ -985,6 +1081,13 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
       avatarColor: data.avatarColor.present
           ? data.avatarColor.value
           : this.avatarColor,
+      avatarAsset: data.avatarAsset.present
+          ? data.avatarAsset.value
+          : this.avatarAsset,
+      googleId: data.googleId.present ? data.googleId.value : this.googleId,
+      emailLower: data.emailLower.present
+          ? data.emailLower.value
+          : this.emailLower,
       joinedAt: data.joinedAt.present ? data.joinedAt.value : this.joinedAt,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
     );
@@ -998,6 +1101,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
           ..write('name: $name, ')
           ..write('deviceId: $deviceId, ')
           ..write('avatarColor: $avatarColor, ')
+          ..write('avatarAsset: $avatarAsset, ')
+          ..write('googleId: $googleId, ')
+          ..write('emailLower: $emailLower, ')
           ..write('joinedAt: $joinedAt, ')
           ..write('deleted: $deleted')
           ..write(')'))
@@ -1005,8 +1111,18 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, tripId, name, deviceId, avatarColor, joinedAt, deleted);
+  int get hashCode => Object.hash(
+    id,
+    tripId,
+    name,
+    deviceId,
+    avatarColor,
+    avatarAsset,
+    googleId,
+    emailLower,
+    joinedAt,
+    deleted,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1016,6 +1132,9 @@ class MemberRow extends DataClass implements Insertable<MemberRow> {
           other.name == this.name &&
           other.deviceId == this.deviceId &&
           other.avatarColor == this.avatarColor &&
+          other.avatarAsset == this.avatarAsset &&
+          other.googleId == this.googleId &&
+          other.emailLower == this.emailLower &&
           other.joinedAt == this.joinedAt &&
           other.deleted == this.deleted);
 }
@@ -1026,6 +1145,9 @@ class MembersCompanion extends UpdateCompanion<MemberRow> {
   final Value<String> name;
   final Value<String> deviceId;
   final Value<int> avatarColor;
+  final Value<String> avatarAsset;
+  final Value<String> googleId;
+  final Value<String> emailLower;
   final Value<DateTime> joinedAt;
   final Value<bool> deleted;
   final Value<int> rowid;
@@ -1035,6 +1157,9 @@ class MembersCompanion extends UpdateCompanion<MemberRow> {
     this.name = const Value.absent(),
     this.deviceId = const Value.absent(),
     this.avatarColor = const Value.absent(),
+    this.avatarAsset = const Value.absent(),
+    this.googleId = const Value.absent(),
+    this.emailLower = const Value.absent(),
     this.joinedAt = const Value.absent(),
     this.deleted = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1045,6 +1170,9 @@ class MembersCompanion extends UpdateCompanion<MemberRow> {
     required String name,
     required String deviceId,
     this.avatarColor = const Value.absent(),
+    this.avatarAsset = const Value.absent(),
+    this.googleId = const Value.absent(),
+    this.emailLower = const Value.absent(),
     required DateTime joinedAt,
     this.deleted = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1059,6 +1187,9 @@ class MembersCompanion extends UpdateCompanion<MemberRow> {
     Expression<String>? name,
     Expression<String>? deviceId,
     Expression<int>? avatarColor,
+    Expression<String>? avatarAsset,
+    Expression<String>? googleId,
+    Expression<String>? emailLower,
     Expression<DateTime>? joinedAt,
     Expression<bool>? deleted,
     Expression<int>? rowid,
@@ -1069,6 +1200,9 @@ class MembersCompanion extends UpdateCompanion<MemberRow> {
       if (name != null) 'name': name,
       if (deviceId != null) 'device_id': deviceId,
       if (avatarColor != null) 'avatar_color': avatarColor,
+      if (avatarAsset != null) 'avatar_asset': avatarAsset,
+      if (googleId != null) 'google_id': googleId,
+      if (emailLower != null) 'email_lower': emailLower,
       if (joinedAt != null) 'joined_at': joinedAt,
       if (deleted != null) 'deleted': deleted,
       if (rowid != null) 'rowid': rowid,
@@ -1081,6 +1215,9 @@ class MembersCompanion extends UpdateCompanion<MemberRow> {
     Value<String>? name,
     Value<String>? deviceId,
     Value<int>? avatarColor,
+    Value<String>? avatarAsset,
+    Value<String>? googleId,
+    Value<String>? emailLower,
     Value<DateTime>? joinedAt,
     Value<bool>? deleted,
     Value<int>? rowid,
@@ -1091,6 +1228,9 @@ class MembersCompanion extends UpdateCompanion<MemberRow> {
       name: name ?? this.name,
       deviceId: deviceId ?? this.deviceId,
       avatarColor: avatarColor ?? this.avatarColor,
+      avatarAsset: avatarAsset ?? this.avatarAsset,
+      googleId: googleId ?? this.googleId,
+      emailLower: emailLower ?? this.emailLower,
       joinedAt: joinedAt ?? this.joinedAt,
       deleted: deleted ?? this.deleted,
       rowid: rowid ?? this.rowid,
@@ -1115,6 +1255,15 @@ class MembersCompanion extends UpdateCompanion<MemberRow> {
     if (avatarColor.present) {
       map['avatar_color'] = Variable<int>(avatarColor.value);
     }
+    if (avatarAsset.present) {
+      map['avatar_asset'] = Variable<String>(avatarAsset.value);
+    }
+    if (googleId.present) {
+      map['google_id'] = Variable<String>(googleId.value);
+    }
+    if (emailLower.present) {
+      map['email_lower'] = Variable<String>(emailLower.value);
+    }
     if (joinedAt.present) {
       map['joined_at'] = Variable<DateTime>(joinedAt.value);
     }
@@ -1135,6 +1284,9 @@ class MembersCompanion extends UpdateCompanion<MemberRow> {
           ..write('name: $name, ')
           ..write('deviceId: $deviceId, ')
           ..write('avatarColor: $avatarColor, ')
+          ..write('avatarAsset: $avatarAsset, ')
+          ..write('googleId: $googleId, ')
+          ..write('emailLower: $emailLower, ')
           ..write('joinedAt: $joinedAt, ')
           ..write('deleted: $deleted, ')
           ..write('rowid: $rowid')
@@ -5124,6 +5276,9 @@ typedef $$MembersTableCreateCompanionBuilder = MembersCompanion Function({
   required String name,
   required String deviceId,
   Value<int> avatarColor,
+  Value<String> avatarAsset,
+  Value<String> googleId,
+  Value<String> emailLower,
   required DateTime joinedAt,
   Value<bool> deleted,
   Value<int> rowid,
@@ -5134,6 +5289,9 @@ typedef $$MembersTableUpdateCompanionBuilder = MembersCompanion Function({
   Value<String> name,
   Value<String> deviceId,
   Value<int> avatarColor,
+  Value<String> avatarAsset,
+  Value<String> googleId,
+  Value<String> emailLower,
   Value<DateTime> joinedAt,
   Value<bool> deleted,
   Value<int> rowid,
@@ -5223,6 +5381,21 @@ class $$MembersTableFilterComposer
 
   ColumnFilters<int> get avatarColor => $composableBuilder(
     column: $table.avatarColor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get avatarAsset => $composableBuilder(
+    column: $table.avatarAsset,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get googleId => $composableBuilder(
+    column: $table.googleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get emailLower => $composableBuilder(
+    column: $table.emailLower,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5339,6 +5512,21 @@ class $$MembersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get avatarAsset => $composableBuilder(
+    column: $table.avatarAsset,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get googleId => $composableBuilder(
+    column: $table.googleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get emailLower => $composableBuilder(
+    column: $table.emailLower,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get joinedAt => $composableBuilder(
     column: $table.joinedAt,
     builder: (column) => ColumnOrderings(column),
@@ -5393,6 +5581,19 @@ class $$MembersTableAnnotationComposer
 
   GeneratedColumn<int> get avatarColor => $composableBuilder(
     column: $table.avatarColor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get avatarAsset => $composableBuilder(
+    column: $table.avatarAsset,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get googleId =>
+      $composableBuilder(column: $table.googleId, builder: (column) => column);
+
+  GeneratedColumn<String> get emailLower => $composableBuilder(
+    column: $table.emailLower,
     builder: (column) => column,
   );
 
@@ -5513,6 +5714,9 @@ class $$MembersTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
                 Value<int> avatarColor = const Value.absent(),
+                Value<String> avatarAsset = const Value.absent(),
+                Value<String> googleId = const Value.absent(),
+                Value<String> emailLower = const Value.absent(),
                 Value<DateTime> joinedAt = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5522,6 +5726,9 @@ class $$MembersTableTableManager
                 name: name,
                 deviceId: deviceId,
                 avatarColor: avatarColor,
+                avatarAsset: avatarAsset,
+                googleId: googleId,
+                emailLower: emailLower,
                 joinedAt: joinedAt,
                 deleted: deleted,
                 rowid: rowid,
@@ -5533,6 +5740,9 @@ class $$MembersTableTableManager
                 required String name,
                 required String deviceId,
                 Value<int> avatarColor = const Value.absent(),
+                Value<String> avatarAsset = const Value.absent(),
+                Value<String> googleId = const Value.absent(),
+                Value<String> emailLower = const Value.absent(),
                 required DateTime joinedAt,
                 Value<bool> deleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5542,6 +5752,9 @@ class $$MembersTableTableManager
                 name: name,
                 deviceId: deviceId,
                 avatarColor: avatarColor,
+                avatarAsset: avatarAsset,
+                googleId: googleId,
+                emailLower: emailLower,
                 joinedAt: joinedAt,
                 deleted: deleted,
                 rowid: rowid,

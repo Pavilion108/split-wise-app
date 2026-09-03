@@ -42,14 +42,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final auth = ref.read(authServiceProvider);
     await auth.checkSignIn();
     if (auth.isSignedIn && mounted) {
-      // Auto-login succeeded (device had Google account) — skip to home.
-      if (auth.wasAutoLogin) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-        return;
-      }
-      setState(() => _step = 1);
+      // Auto-login succeeded — skip to home immediately.
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+      return;
     }
   }
 
@@ -271,6 +268,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _buildGoogleSignInStep() {
     final auth = ref.watch(authServiceProvider);
 
+    // If sign-in completed (via renderButton on web or native), navigate to home.
+    if (auth.isSignedIn) {
+      // Navigate after frame to avoid setState during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
+      });
+    }
+
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -300,40 +309,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
           ),
           const SizedBox(height: 32),
-          if (auth.isSignedIn)
-            Column(
-              children: [
-                if (auth.currentUser?.photoUrl != null)
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundImage: NetworkImage(auth.currentUser!.photoUrl!),
-                  ),
-                const SizedBox(height: 8),
-                Text(
-                  'Signed in as ${auth.currentUser?.displayName}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  auth.currentUser?.email ?? '',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () => setState(() => _step = 2),
-                  child: const Text('Continue'),
-                ),
-              ],
-            )
-          else
-            const SignInButton(),
-          if (PlatformDetect.isWeb) ...[
-            const SizedBox(height: 24),
-            // After web sign-in, prompt to open in app.
-            if (auth.isSignedIn) _buildOpenInAppPrompt(),
-          ],
+          if (!auth.isSignedIn) const SignInButton(),
         ],
       ),
     );
