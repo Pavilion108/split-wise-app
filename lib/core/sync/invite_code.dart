@@ -64,7 +64,7 @@ class InviteCode {
         '\u{1F511} Code: $code\n'
         '\u{1F4B1} Currency: $baseCurrency\n'
         '\u{1F464} Created by: $creatorName\n\n'
-        'Open the app or visit the website:\n$websiteUrl\n\n'
+        'Open the app or visit the website:\n$link\n\n'
         'Then enter code: $code';
   }
 

@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_database/firebase_database.dart';
 
 import '../../services/admin_service.dart';
 
@@ -424,7 +423,6 @@ class _AdminScreenState extends State<AdminScreen> {
                                 final op = _selectedTripOps[i];
                                 final ts = op['lamportTs'] ?? 0;
                                 final type = op['opType'] ?? '';
-                                final author = op['authorDevice'] ?? '';
                                 final entity = op['entityId'] ?? '';
                                 return ListTile(
                                   leading: Icon(

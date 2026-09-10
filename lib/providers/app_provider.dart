@@ -12,7 +12,6 @@ import '../models/models.dart';
 import '../repositories/expense_repository.dart';
 import '../repositories/trip_repository.dart';
 import '../services/auth_service.dart';
-import '../services/avatar_service.dart';
 import '../services/balance_engine.dart';
 import '../services/currency_service.dart';
 import '../services/daily_brief_service.dart';

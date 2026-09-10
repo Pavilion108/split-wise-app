@@ -60,3 +60,6 @@ app.*.map.json
 
 # Exclude build artifacts but keep generated code
 !**/*.g.dart
+node_modules/
+.firebase/
+build/

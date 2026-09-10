@@ -16,7 +16,6 @@ class _SponsorCardState extends State<SponsorCard> with TickerProviderStateMixin
   bool _cheers = false;
   late AnimationController _ctrl;
   late AnimationController _lottieCtrl;
-  late Animation<double> _steam;
   late Animation<double> _shimmer;
 
   String get _upiUrl => Uri(scheme: 'upi', host: 'pay', queryParameters: {
@@ -31,7 +30,6 @@ class _SponsorCardState extends State<SponsorCard> with TickerProviderStateMixin
     super.initState();
     _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
     _lottieCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 3000));
-    _steam = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
     _shimmer = Tween<double>(begin: -1, end: 2).animate(CurvedAnimation(parent: _ctrl, curve: Curves.linear));
     // Play Lottie 3s then stop (modern Ara: show craft once, not loop forever)
     _lottieCtrl.forward();

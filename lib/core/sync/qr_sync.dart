@@ -61,12 +61,12 @@ class QrSyncTransport {
       final json = utf8.decode(bytes);
       final payload = SyncPayload.decode(json);
 
-      final applied = await _syncService.processPayload(payload);
+      final result = await _syncService.processPayload(payload);
 
       return ImportResult(
         success: true,
         tripId: payload.tripId,
-        opsApplied: applied,
+        opsApplied: result.opsApplied,
       );
     } catch (e) {
       return ImportResult(success: false, error: e.toString());
