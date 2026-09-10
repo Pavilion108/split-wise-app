@@ -82,6 +82,8 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
+      child: TripBackground(
+      currencyCode: tripAsync.value?.baseCurrency ?? 'INR',
       child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -157,9 +159,7 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
           ),
         ],
       ),
-      body: TripBackground(
-        currencyCode: tripAsync.value?.baseCurrency ?? 'INR',
-        child: Center(
+      body: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: ResponsiveLayout.contentMaxWidth(context),
@@ -189,26 +189,28 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          backgroundColor: Colors.black.withValues(alpha: 0.7),
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          indicatorColor: Colors.white.withValues(alpha: 0.15),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12);
+            }
+            return TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12);
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(color: Colors.white, size: 24);
+            }
+            return IconThemeData(color: Colors.white.withValues(alpha: 0.6), size: 24);
+          }),
+        ),
+        child: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
-        backgroundColor: Colors.black.withValues(alpha: 0.7),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: Colors.white.withValues(alpha: 0.15),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12);
-          }
-          return TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12);
-        }),
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: Colors.white, size: 24);
-          }
-          return IconThemeData(color: Colors.white.withValues(alpha: 0.6), size: 24);
-        }),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -226,6 +228,7 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
             label: 'Payments',
           ),
         ],
+      ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'add_expense_fab',
@@ -248,6 +251,7 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add Expense'),
       ),
+    ),
     ),
     );
   }
@@ -1242,7 +1246,7 @@ void _showPayBottomSheet(
                         ],
                       ),
                     );
-                  }
+                   }
                 }
 
                 // Ask for payment confirmation.

@@ -138,7 +138,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
-      child: Scaffold(
+      child: DailyTravelBackground(
+        child: Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -148,7 +149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Material(
             color: Colors.transparent,
             child: const Text('Spliti5',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: -0.5)),
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0)),
           ),
         ),
         actions: [
@@ -162,8 +163,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      body: DailyTravelBackground(
-        child: Column(
+      body: Column(
         children: [
           if (_showInstallBanner)
             AppInstallBanner(
@@ -242,36 +242,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: Colors.black.withValues(alpha: 0.7),
-        indicatorColor: Colors.white.withValues(alpha: 0.15),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12);
-          }
-          return TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12);
-        }),
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: Colors.white, size: 24);
-          }
-          return IconThemeData(color: Colors.white.withValues(alpha: 0.6), size: 24);
-        }),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            selectedIcon: Icon(Icons.add_circle),
-            label: 'Create',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.link),
-            selectedIcon: Icon(Icons.link),
-            label: 'Join',
-          ),
-        ],
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          backgroundColor: Colors.black.withValues(alpha: 0.7),
+          indicatorColor: Colors.white.withValues(alpha: 0.15),
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12);
+            }
+            return TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12);
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(color: Colors.white, size: 24);
+            }
+            return IconThemeData(color: Colors.white.withValues(alpha: 0.6), size: 24);
+          }),
+        ),
+        child: NavigationBar(
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.add_circle_outline),
+              selectedIcon: Icon(Icons.add_circle),
+              label: 'Create',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.link),
+              selectedIcon: Icon(Icons.link),
+              label: 'Join',
+            ),
+          ],
         onDestinationSelected: (i) {
           if (i == 0) {
             Navigator.push(
@@ -287,6 +289,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           }
         },
       ),
+      ),
+    ),
     ),
     );
   }

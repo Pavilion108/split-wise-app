@@ -101,11 +101,18 @@ class AuthService extends ChangeNotifier {
     // Google One Tap completes in the background. We wait for that event
     // so the UI doesn't flash the onboarding screen.
     if (kIsWeb) {
+      // Check if user was previously signed in — if so, give One Tap more time.
+      final prefs = await SharedPreferences.getInstance();
+      final wasSignedIn = prefs.getBool(_kSignedInFlag) == true;
+      final timeout = wasSignedIn
+          ? const Duration(seconds: 6)
+          : const Duration(seconds: 3);
+
       _googleSignIn.attemptLightweightAuthentication();
-      // Wait up to 3s for Google One Tap to restore the session.
+      // Wait for Google One Tap to restore the session.
       if (_authEventCompleter != null && !_authEventCompleter!.isCompleted) {
         await _authEventCompleter!.future.timeout(
-          const Duration(seconds: 3),
+          timeout,
           onTimeout: () {}, // Timeout is fine — user will see sign-in button.
         );
       }

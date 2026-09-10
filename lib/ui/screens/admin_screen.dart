@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -111,7 +112,7 @@ class _AdminScreenState extends State<AdminScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _selectedTripId != null
               ? _buildTripDetail(cs)
-              : _buildOverview(cs),
+              : _buildCurrentTab(cs),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() {
@@ -129,11 +130,21 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
+  Widget _buildCurrentTab(ColorScheme cs) {
+    switch (_tab) {
+      case 0: return _buildOverview(cs);
+      case 1: return _buildTripsList(cs);
+      case 2: return _buildUsersList(cs);
+      case 3: return _buildInviteCodesList(cs);
+      case 4: return _buildInvitesList(cs);
+      default: return _buildOverview(cs);
+    }
+  }
+
   Widget _buildOverview(ColorScheme cs) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Stats cards
         GridView.count(
           crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
           shrinkWrap: true,
@@ -146,10 +157,11 @@ class _AdminScreenState extends State<AdminScreen> {
             _statCard('Users', '${_stats['users'] ?? 0}', Icons.people, cs.tertiary),
             _statCard('Invite Codes', '${_stats['invite_codes'] ?? 0}', Icons.vpn_key, Colors.orange),
             _statCard('Email Trips', '${_stats['email_trips'] ?? 0}', Icons.email, Colors.teal),
+            _statCard('Devices', '${_stats['devices'] ?? 0}', Icons.phone_android, Colors.purple),
+            _statCard('Invites', '${_stats['invites'] ?? 0}', Icons.mail, Colors.brown),
           ],
         ),
         const SizedBox(height: 20),
-        // Admin info
         Card(
           child: ListTile(
             leading: CircleAvatar(
@@ -166,7 +178,6 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        // Quick actions
         Text('Quick Actions', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Wrap(
@@ -174,19 +185,14 @@ class _AdminScreenState extends State<AdminScreen> {
           runSpacing: 8,
           children: [
             ActionChip(
-              avatar: const Icon(Icons.download, size: 18),
-              label: const Text('Export All Data'),
-              onPressed: _exportAllData,
+              avatar: const Icon(Icons.archive, size: 18),
+              label: const Text('Export as ZIP'),
+              onPressed: _exportAsZip,
             ),
             ActionChip(
               avatar: const Icon(Icons.delete_forever, size: 18),
               label: const Text('Delete All Trips'),
               onPressed: _deleteAllTrips,
-            ),
-            ActionChip(
-              avatar: const Icon(Icons.people_alt, size: 18),
-              label: const Text('View All Members'),
-              onPressed: _viewAllMembers,
             ),
           ],
         ),
@@ -201,29 +207,54 @@ class _AdminScreenState extends State<AdminScreen> {
       itemCount: _trips.length,
       itemBuilder: (_, i) {
         final t = _trips[i];
+        final createdAt = t['createdAt'] as String? ?? '';
+        final dateStr = createdAt.isNotEmpty ? createdAt.substring(0, createdAt.length > 10 ? 10 : createdAt.length) : '';
         return Card(
-          child: ListTile(
+          child: ExpansionTile(
             leading: CircleAvatar(
               backgroundColor: cs.primary,
               child: Text('${(t['name'] as String)[0]}', style: const TextStyle(color: Colors.white)),
             ),
             title: Text(t['name'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text('${t['memberCount']} members  |  ${t['opsCount']} ops'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.visibility, size: 20),
-                  tooltip: 'View details',
-                  onPressed: () => _selectTrip(t['id'] as String),
+            subtitle: Text('${t['memberCount']} members | ${t['expenseCount']} expenses | ${(t['baseCurrency'] as String)}'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _detailRow('Trip ID', '${t['id']}'),
+                    _detailRow('Currency', '${t['baseCurrency']}'),
+                    _detailRow('Status', '${t['status']}'),
+                    _detailRow('Created', dateStr),
+                    _detailRow('Creator', '${t['createdBy']}'),
+                    _detailRow('Invite Code', '${t['inviteCode']}'),
+                    _detailRow('Ops Count', '${t['opsCount']}'),
+                    if ((t['driveFolderLink'] as String).isNotEmpty)
+                      _detailRow('Drive', '${t['driveFolderLink']}'),
+                    if ((t['whatsappGroupLink'] as String).isNotEmpty)
+                      _detailRow('WhatsApp', '${t['whatsappGroupLink']}'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => _selectTrip(t['id'] as String),
+                          icon: const Icon(Icons.visibility, size: 16),
+                          label: const Text('View Details'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          onPressed: () => _confirmDeleteTrip(t),
+                          icon: const Icon(Icons.delete, size: 16),
+                          label: const Text('Delete Forever'),
+                          style: FilledButton.styleFrom(backgroundColor: cs.error),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                IconButton(
-                  icon: Icon(Icons.delete, size: 20, color: cs.error),
-                  tooltip: 'Delete permanently',
-                  onPressed: () => _confirmDeleteTrip(t),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
@@ -240,10 +271,23 @@ class _AdminScreenState extends State<AdminScreen> {
         return Card(
           child: ListTile(
             leading: CircleAvatar(
-              child: Text('${(u['displayName'] ?? '?')[0]}'),
+              backgroundImage: (u['photoUrl'] as String?)?.isNotEmpty == true
+                  ? NetworkImage(u['photoUrl'] as String)
+                  : null,
+              child: (u['photoUrl'] as String?)?.isNotEmpty != true
+                  ? Text('${(u['displayName'] ?? '?')[0]}')
+                  : null,
             ),
             title: Text(u['displayName'] ?? 'Unknown'),
-            subtitle: Text(u['emailLower'] ?? ''),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(u['emailLower'] ?? '', style: const TextStyle(fontSize: 12)),
+                Text('Google ID: ${u['googleId'] ?? 'N/A'}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text('Trips: ${u['tripCount'] ?? 0}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              ],
+            ),
+            isThreeLine: true,
             trailing: IconButton(
               icon: Icon(Icons.delete, size: 20, color: cs.error),
               onPressed: () => _confirmDeleteUser(u),
@@ -328,8 +372,9 @@ class _AdminScreenState extends State<AdminScreen> {
                 onPressed: () => setState(() => _selectedTripId = null),
               ),
               const SizedBox(width: 8),
-              Text('Trip: $_selectedTripId', style: const TextStyle(fontWeight: FontWeight.bold)),
-              const Spacer(),
+              Expanded(
+                child: Text('Trip: $_selectedTripId', style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+              ),
               Text('${_selectedTripMembers.length} members | ${_selectedTripOps.length} ops'),
             ],
           ),
@@ -343,7 +388,6 @@ class _AdminScreenState extends State<AdminScreen> {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      // Members
                       _selectedTripMembers.isEmpty
                           ? const Center(child: Text('No members'))
                           : ListView.builder(
@@ -351,9 +395,17 @@ class _AdminScreenState extends State<AdminScreen> {
                               itemBuilder: (_, i) {
                                 final m = _selectedTripMembers[i];
                                 return ListTile(
-                                  leading: CircleAvatar(child: Text('${(m['name'] ?? '?')[0]}')),
+                                  leading: CircleAvatar(
+                                    backgroundImage: (m['photoUrl'] as String?)?.isNotEmpty == true
+                                        ? NetworkImage(m['photoUrl'] as String)
+                                        : null,
+                                    child: (m['photoUrl'] as String?)?.isNotEmpty != true
+                                        ? Text('${(m['name'] ?? '?')[0]}')
+                                        : null,
+                                  ),
                                   title: Text(m['name'] ?? ''),
-                                  subtitle: Text('Email: ${m['emailLower'] ?? 'N/A'}'),
+                                  subtitle: Text('Email: ${m['emailLower'] ?? 'N/A'}\nGoogle: ${m['googleId'] ?? 'N/A'}'),
+                                  isThreeLine: true,
                                   trailing: IconButton(
                                     icon: Icon(Icons.delete, size: 18, color: cs.error),
                                     onPressed: () async {
@@ -364,7 +416,6 @@ class _AdminScreenState extends State<AdminScreen> {
                                 );
                               },
                             ),
-                      // Ops
                       _selectedTripOps.isEmpty
                           ? const Center(child: Text('No ops'))
                           : ListView.builder(
@@ -374,16 +425,18 @@ class _AdminScreenState extends State<AdminScreen> {
                                 final ts = op['lamportTs'] ?? 0;
                                 final type = op['opType'] ?? '';
                                 final author = op['authorDevice'] ?? '';
+                                final entity = op['entityId'] ?? '';
                                 return ListTile(
                                   leading: Icon(
                                     type == 'member' ? Icons.person :
-                                    type == 'expense' ? Icons.receipt :
-                                    type == 'settlement' ? Icons.payment :
+                                    type == 'expense' || type == 'expense_corrected' ? Icons.receipt :
+                                    type == 'settlement' || type == 'settlement_edited' ? Icons.payment :
+                                    type.contains('trip') ? Icons.directions_bus :
                                     Icons.code,
                                     size: 20,
                                   ),
                                   title: Text(type, style: const TextStyle(fontSize: 14)),
-                                  subtitle: Text('TS: $ts | Author: ${author.substring(0, author.length > 8 ? 8 : author.length)}...'),
+                                  subtitle: Text('TS: $ts | Entity: ${entity.substring(0, entity.length > 12 ? 12 : entity.length)}...'),
                                   trailing: IconButton(
                                     icon: Icon(Icons.delete, size: 16, color: cs.error),
                                     onPressed: () async {
@@ -423,12 +476,28 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmDeleteTrip(Map<String, dynamic> trip) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Trip Permanently?'),
-        content: Text('This will permanently delete "${trip['name']}" and ALL its data. This cannot be undone.'),
+        content: Text('This will permanently delete "${trip['name']}" and ALL its data including invite codes. This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           FilledButton(
@@ -450,7 +519,7 @@ class _AdminScreenState extends State<AdminScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete User?'),
-        content: Text('Delete "${user['displayName']}" from directory?'),
+        content: Text('Delete "${user['displayName']}" from directory and user profile?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           FilledButton(
@@ -467,20 +536,23 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  Future<void> _exportAllData() async {
+  Future<void> _exportAsZip() async {
     try {
-      final data = await AdminService.instance.getFullDatabaseSnapshot();
-      final json = data.toString();
-      await Clipboard.setData(ClipboardData(text: json));
+      final backup = await AdminService.instance.generateBackupData();
+      final jsonStr = const JsonEncoder.withIndent('  ').convert(backup);
+
+      // Copy JSON to clipboard as a simple export
+      await Clipboard.setData(ClipboardData(text: jsonStr));
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Database snapshot copied to clipboard')),
+          const SnackBar(content: Text('Backup JSON copied to clipboard. Paste into a .json file.')),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Export error: $e')),
         );
       }
     }
@@ -491,7 +563,7 @@ class _AdminScreenState extends State<AdminScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('DELETE ALL TRIPS?'),
-        content: const Text('This will permanently delete ALL trips from the database. This cannot be undone.'),
+        content: const Text('This will permanently delete ALL trips and their invite codes from the database. This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           FilledButton(
@@ -508,10 +580,5 @@ class _AdminScreenState extends State<AdminScreen> {
       }
       _loadData();
     }
-  }
-
-  void _viewAllMembers() {
-    _tab = 1;
-    setState(() {});
   }
 }
