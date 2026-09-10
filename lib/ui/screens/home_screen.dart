@@ -149,7 +149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Material(
             color: Colors.transparent,
             child: const Text('Spliti5',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0)),
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0, fontSize: 24)),
           ),
         ),
         actions: [

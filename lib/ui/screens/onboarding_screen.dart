@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/platform/platform_detect.dart';
 import '../../core/platform/web_download.dart';
 import '../../providers/app_provider.dart';
 import '../widgets/sign_in_button.dart';
+import '../widgets/airplane_branding.dart';
 import 'home_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -85,24 +85,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Logo
-          Image.asset(
-            'assets/logo.png',
-            width: 140,
-            height: 140,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(Icons.receipt_long, size: 64, color: Color(0xFF667eea)),
-          ).animate().fadeIn(duration: 600.ms).scale(begin: const Offset(0.8, 0.8)),
-          const SizedBox(height: 32),
-          Text(
-            'Spliti5',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: -0.5,
-            ),
-          ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
-          const SizedBox(height: 8),
+          // Airplane branding animation
+          const AirplaneBranding(airplaneSize: 56, textSize: 44),
+          const SizedBox(height: 16),
           Text(
             'Track expenses with your group.\nFair splits, zero awkwardness.',
             textAlign: TextAlign.center,
@@ -148,23 +133,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            'assets/logo.png',
-            width: 160,
-            height: 160,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(Icons.receipt_long, size: 72, color: Color(0xFF667eea)),
-          ).animate().fadeIn(duration: 600.ms).scale(begin: const Offset(0.8, 0.8)),
-          const SizedBox(height: 36),
-          Text(
-            'Spliti5',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: -0.5,
-            ),
-          ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
-          const SizedBox(height: 10),
+          const AirplaneBranding(airplaneSize: 64, textSize: 48),
+          const SizedBox(height: 20),
           Text(
             'Track expenses with your group.\nFair splits, zero awkwardness.',
             textAlign: TextAlign.center,
@@ -224,14 +194,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            'assets/logo.png',
-            width: 100,
-            height: 100,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(Icons.receipt_long, size: 48, color: Color(0xFF667eea)),
-          ),
-          const SizedBox(height: 28),
+          const AirplaneBranding(airplaneSize: 40, textSize: 28),
+          const SizedBox(height: 20),
           Text(
             'Sign in with Google',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
