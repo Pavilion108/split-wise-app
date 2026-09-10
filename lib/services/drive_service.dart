@@ -12,7 +12,7 @@ class DriveService {
 
   final AuthService _authService;
 
-  /// Root folder ID for all Split Wise trip folders.
+  /// Root folder ID for all Spliti5 trip folders.
   String? _rootFolderId;
 
   /// Authenticated HTTP client for Drive API calls.
@@ -28,13 +28,13 @@ class DriveService {
     return drive.DriveApi(_client!);
   }
 
-  /// Create or get the root "Split Wise" folder in user's Drive.
+  /// Create or get the root "Spliti5" folder in user's Drive.
   Future<String> _ensureRootFolder(drive.DriveApi api) async {
     if (_rootFolderId != null) return _rootFolderId!;
 
     // Search for existing root folder.
     final query = await api.files.list(
-      q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Split Wise' and trashed = false",
+      q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Spliti5' and trashed = false",
       $fields: 'files(id, name)',
     );
     if (query.files != null && query.files!.isNotEmpty) {
@@ -44,14 +44,14 @@ class DriveService {
 
     // Create root folder.
     final folder = drive.File()
-      ..name = 'Split Wise'
+      ..name = 'Spliti5'
       ..mimeType = 'application/vnd.google-apps.folder';
     final created = await api.files.create(folder);
     _rootFolderId = created.id!;
     return _rootFolderId!;
   }
 
-  /// Create a trip folder inside "Split Wise" root.
+  /// Create a trip folder inside "Spliti5" root.
   Future<TripFolder> createTripFolder({
     required String tripName,
     required String tripId,
@@ -80,7 +80,7 @@ class DriveService {
       ..name = tripName
       ..mimeType = 'application/vnd.google-apps.folder'
       ..parents = [rootId]
-      ..description = 'Split Wise trip: $tripId';
+      ..description = 'Spliti5 trip: $tripId';
 
     final created =
         await api.files.create(folder, $fields: 'id, name, webViewLink');

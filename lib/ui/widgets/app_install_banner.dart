@@ -125,7 +125,7 @@ class PlatformChoiceScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Split Wise',
+                    'Spliti5',
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),

@@ -59,7 +59,7 @@ class InviteCode {
     required String baseCurrency,
   }) {
     final link = buildJoinLink(code, tripName: tripName);
-    return 'Hey! Join "$tripName" on Split Wise to track our expenses together.\n\n'
+    return 'Hey! Join "$tripName" on Spliti5 to track our expenses together.\n\n'
         '\u{1F4B0} Trip: $tripName\n'
         '\u{1F511} Code: $code\n'
         '\u{1F4B1} Currency: $baseCurrency\n'
@@ -75,7 +75,7 @@ class InviteCode {
     required String creatorName,
     required String baseCurrency,
   }) {
-    return 'Split Wise Trip Invitation\n'
+    return 'Spliti5 Trip Invitation\n'
         '========================\n\n'
         'Trip: $tripName\n'
         'Code: $code\n'
@@ -93,7 +93,7 @@ class InviteCode {
     required String code,
     required String tripName,
   }) =>
-      'Join "$tripName" on Split Wise!\n'
+      'Join "$tripName" on Spliti5!\n'
       'Code: $code\n'
       'Website: $websiteUrl';
 }

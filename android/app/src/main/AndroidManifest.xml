@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="split_wise"
+        android:label="Spliti5"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -40,6 +40,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Required for UPI deep links on Android 11+ -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="upi" android:host="pay" />
         </intent>
     </queries>
 </manifest>

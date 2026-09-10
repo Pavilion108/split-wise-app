@@ -16,7 +16,9 @@ import '../../services/version_service.dart';
 import '../widgets/app_install_banner.dart';
 import '../widgets/responsive_layout.dart';
 import 'profile_screen.dart';
+import 'create_trip_screen.dart';
 import 'trip_dashboard_screen.dart';
+import '../widgets/daily_travel_background.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, this.initialJoinCode});
@@ -134,13 +136,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final auth = ref.watch(authServiceProvider);
     final myGoogleId = auth.currentUser?.id ?? '';
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('Split Wise',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Hero(
+          tag: 'app_title',
+          child: Material(
+            color: Colors.transparent,
+            child: const Text('Spliti5',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: -0.5)),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_rounded),
+            icon: const Icon(Icons.person_rounded, color: Colors.white),
             tooltip: 'Profile',
             onPressed: () => Navigator.push(
               context,
@@ -149,7 +162,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: DailyTravelBackground(
+        child: Column(
         children: [
           if (_showInstallBanner)
             AppInstallBanner(
@@ -164,16 +178,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 if (pending.isEmpty) return const SizedBox.shrink();
                 return Container(
                   margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(12), border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2))),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  ),
                   child: Column(
                     children: pending.map((e) {
                       final v = Map<String, dynamic>.from(e.value as Map);
                       return ListTile(
-                        leading: const Icon(Icons.mail_rounded),
-                        title: Text('Invite: ${v['tripName'] ?? e.key}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                        subtitle: const Text('Tap to accept', style: TextStyle(fontSize: 12)),
+                        leading: Icon(Icons.mail_rounded, color: Colors.white.withValues(alpha: 0.8)),
+                        title: Text('Invite: ${v['tripName'] ?? e.key}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.white)),
+                        subtitle: Text('Tap to accept', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
                         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                          TextButton(onPressed: () => ref.read(cloudSyncProvider).respondInvite(googleId: myGoogleId, tripId: e.key, accept: false), child: const Text('Decline')),
+                          TextButton(onPressed: () => ref.read(cloudSyncProvider).respondInvite(googleId: myGoogleId, tripId: e.key, accept: false), child: Text('Decline', style: TextStyle(color: Colors.white.withValues(alpha: 0.6)))),
                           FilledButton(onPressed: () async {
                             await ref.read(cloudSyncProvider).respondInvite(googleId: myGoogleId, tripId: e.key, accept: true);
                             final tripId = e.key;
@@ -224,7 +242,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
+      ),
       bottomNavigationBar: NavigationBar(
+        backgroundColor: Colors.black.withValues(alpha: 0.7),
+        indicatorColor: Colors.white.withValues(alpha: 0.15),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12);
+          }
+          return TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12);
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: Colors.white, size: 24);
+          }
+          return IconThemeData(color: Colors.white.withValues(alpha: 0.6), size: 24);
+        }),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.add_circle_outline),
@@ -239,12 +274,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
         onDestinationSelected: (i) {
           if (i == 0) {
-            _createTrip(context, ref);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateTripScreen()),
+            ).then((trip) {
+              if (trip != null && trip is Trip) {
+                _showInviteCode(context, ref, trip);
+              }
+            });
           } else {
             _joinTrip(context, ref);
           }
         },
       ),
+    ),
     );
   }
 
@@ -679,24 +722,32 @@ class _TripTile extends ConsumerWidget {
         }
       },
       child: Card(
+        color: Colors.black.withValues(alpha: 0.45),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
         child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
+          backgroundColor: Colors.white.withValues(alpha: 0.15),
           child: Text(
             trip.name.isNotEmpty ? trip.name[0].toUpperCase() : '?',
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
           ),
         ),
         title: Text(trip.name,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(trip.baseCurrency),
+            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
+        subtitle: Text(trip.baseCurrency,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
         trailing: trip.status == 'completed'
-            ? const Chip(
-                label: Text('Completed'),
-                avatar: Icon(Icons.check_circle, size: 16),
+            ? Chip(
+                label: const Text('Completed', style: TextStyle(color: Colors.white, fontSize: 11)),
+                avatar: const Icon(Icons.check_circle, size: 14, color: Colors.white70),
                 visualDensity: VisualDensity.compact,
+                backgroundColor: Colors.white.withValues(alpha: 0.1),
               )
-            : const Icon(Icons.chevron_right),
+            : Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.6)),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) =>
               TripDashboardScreen(tripId: trip.id, tripName: trip.name),
@@ -834,16 +885,16 @@ class _EmptyState extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.receipt_long_outlined,
-              size: 72, color: Theme.of(context).colorScheme.outline),
+              size: 72, color: Colors.white.withValues(alpha: 0.4)),
           const SizedBox(height: 16),
           Text('No trips yet',
-              style: Theme.of(context).textTheme.titleLarge),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
           const SizedBox(height: 8),
           Text(
             'Create a trip or join with an invite code.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
+                  color: Colors.white.withValues(alpha: 0.6),
                 ),
           ),
         ],

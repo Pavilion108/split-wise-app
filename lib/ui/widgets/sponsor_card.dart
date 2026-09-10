@@ -23,7 +23,7 @@ class _SponsorCardState extends State<SponsorCard> with TickerProviderStateMixin
         'pa': 'vighnesh.bagal99-1@okicici',
         'pn': 'Vighnesh Bagal',
         'cu': 'INR',
-        'tn': 'Support Split Wise',
+        'tn': 'Support Spliti5',
       }).toString();
 
   @override

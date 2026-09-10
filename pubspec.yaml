@@ -1,5 +1,5 @@
 name: split_wise
-description: "A new Flutter project."
+description: "Spliti5 — Track expenses with your group."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -54,6 +54,8 @@ dependencies:
   flutter_animate: ^4.5.0
   firebase_core: ^4.13.0
   firebase_database: ^12.4.7
+  firebase_storage: ^13.4.6
+  file_picker: ^12.2.0
   google_sign_in: ^7.2.0
   googleapis: ^16.0.0
   googleapis_auth: ^2.3.3
@@ -91,6 +93,7 @@ flutter:
   assets:
     - assets/avatars/
     - assets/animations/
+    - assets/logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -1,4 +1,4 @@
-/// Security hardening utilities for Split Wise.
+/// Security hardening utilities for Spliti5.
 ///
 /// Protects against malformed inputs, overflow attacks, injection, and
 /// ensures data integrity at every user-facing boundary.

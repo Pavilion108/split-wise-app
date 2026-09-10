@@ -1,11 +1,11 @@
 {
-    "name": "split_wise",
-    "short_name": "split_wise",
+    "name": "Spliti5",
+    "short_name": "Spliti5",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Spliti5 — Track expenses with your group.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -61,7 +61,7 @@ class _SplitWiseAppState extends ConsumerState<SplitWiseApp> {
     final settings = ref.watch(settingsServiceProvider);
 
     return MaterialApp(
-      title: 'Split Wise',
+      title: 'Spliti5',
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),

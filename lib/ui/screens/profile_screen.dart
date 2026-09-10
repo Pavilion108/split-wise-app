@@ -9,6 +9,7 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../providers/app_provider.dart';
 import '../../services/admin_service.dart';
+import '../../services/photo_upload_service.dart';
 import 'admin_screen.dart';
 import '../../services/avatar_service.dart';
 import '../../services/upi_launcher.dart';
@@ -63,15 +64,87 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     GestureDetector(
                       onTap: () async {
-                        final picked = await showAvatarPicker(context, avatarId);
-                        if (picked != null) {
-                          await ref.read(userDirectoryServiceProvider).setAvatarAsset(picked);
-                          final user = auth.currentUser;
-                          if (user != null) {
-                            await ref.read(userDirectoryServiceProvider).upsertProfile(googleId: user.id, email: user.email, displayName: user.displayName ?? '', photoUrl: user.photoUrl ?? '', avatarAsset: picked);
+                        // Show dialog with two options: emoji avatar or photo upload
+                        final choice = await showDialog<String>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Change Avatar'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(Icons.emoji_emotions_outlined),
+                                  title: const Text('Choose Emoji Avatar'),
+                                  onTap: () => Navigator.pop(ctx, 'emoji'),
+                                ),
+                                ListTile(
+                                  leading: const Icon(Icons.camera_alt_outlined),
+                                  title: const Text('Upload Photo'),
+                                  subtitle: const Text('From gallery or camera'),
+                                  onTap: () => Navigator.pop(ctx, 'photo'),
+                                ),
+                                if (avatarId.isNotEmpty || (auth.currentUser?.photoUrl?.isNotEmpty == true && avatarId.isEmpty))
+                                  ListTile(
+                                    leading: const Icon(Icons.close, color: Colors.red),
+                                    title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                                    onTap: () => Navigator.pop(ctx, 'remove'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+
+                        if (choice == 'emoji') {
+                          final picked = await showAvatarPicker(context, avatarId);
+                          if (picked != null) {
+                            await ref.read(userDirectoryServiceProvider).setAvatarAsset(picked);
+                            final user = auth.currentUser;
+                            if (user != null) {
+                              await ref.read(userDirectoryServiceProvider).upsertProfile(googleId: user.id, email: user.email, displayName: user.displayName ?? '', photoUrl: user.photoUrl ?? '', avatarAsset: picked);
+                            }
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Avatar updated to ${AvatarService.byId(picked)?['name']}')));
+                            if (ctx.mounted) (ctx as Element).markNeedsBuild();
                           }
-                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Avatar updated to ${AvatarService.byId(picked)?['name']}')));
-                          (ctx as Element).markNeedsBuild();
+                        } else if (choice == 'photo') {
+                          final bytes = await PhotoUploadService.instance.pickImage();
+                          if (bytes != null && auth.currentUser != null) {
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Uploading photo...')));
+                            final url = await PhotoUploadService.instance.uploadProfilePhoto(
+                              googleId: auth.currentUser!.id,
+                              imageBytes: bytes,
+                            );
+                            if (url != null) {
+                              // Clear emoji avatar since we now have a photo
+                              await ref.read(userDirectoryServiceProvider).setAvatarAsset('');
+                              final user = auth.currentUser;
+                              if (user != null) {
+                                await ref.read(userDirectoryServiceProvider).upsertProfile(
+                                  googleId: user.id,
+                                  email: user.email,
+                                  displayName: user.displayName ?? '',
+                                  photoUrl: url,
+                                  avatarAsset: '',
+                                );
+                              }
+                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Photo uploaded!')));
+                              if (ctx.mounted) (ctx as Element).markNeedsBuild();
+                            } else {
+                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload failed. Try again.')));
+                            }
+                          }
+                        } else if (choice == 'remove') {
+                          await ref.read(userDirectoryServiceProvider).setAvatarAsset('');
+                          if (auth.currentUser != null) {
+                            await ref.read(userDirectoryServiceProvider).upsertProfile(
+                              googleId: auth.currentUser!.id,
+                              email: auth.currentUser!.email,
+                              displayName: auth.currentUser!.displayName ?? '',
+                              photoUrl: auth.currentUser!.photoUrl ?? '',
+                              avatarAsset: '',
+                            );
+                          }
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Avatar reset to default')));
+                          if (ctx.mounted) (ctx as Element).markNeedsBuild();
                         }
                       },
                       child: Stack(
@@ -305,7 +378,7 @@ class ProfileScreen extends ConsumerWidget {
                 showDialog<void>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: Text('Split Wise v$version'),
+                    title: Text('Spliti5 v$version'),
                     content: SingleChildScrollView(
                       child: Text(VersionService.getWhatsNew()),
                     ),
@@ -336,7 +409,7 @@ class ProfileScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.description_rounded,
             title: 'Terms of Service',
-            subtitle: 'Rules for using Split Wise',
+            subtitle: 'Rules for using Spliti5',
             trailing: Icon(Icons.open_in_new_rounded, color: cs.outline, size: 18),
             onTap: () => launchUrl(
               Uri.parse('https://splitwiser-26.web.app/terms_of_service.html'),
@@ -384,7 +457,7 @@ class ProfileScreen extends ConsumerWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => launchUrl(
                       Uri.parse('mailto:vighnesh.bagal99+split_wise-info@gmail.com'
-                          '?subject=${Uri.encodeComponent('Split Wise — Support Request')}'),
+                          '?subject=${Uri.encodeComponent('Spliti5 — Support Request')}'),
                     ),
                     icon: const Icon(Icons.email_outlined, size: 18),
                     label: const Text('Email Support'),
@@ -497,7 +570,7 @@ class ProfileScreen extends ConsumerWidget {
     }
 
     final buffer = StringBuffer();
-    buffer.writeln('Split Wise — Exported Data');
+    buffer.writeln('Spliti5 — Exported Data');
     buffer.writeln('Generated: ${DateTime.now().toString().substring(0, 19)}');
     buffer.writeln('${'=' * 40}\n');
 
@@ -528,7 +601,7 @@ class ProfileScreen extends ConsumerWidget {
     await Share.shareXFiles(
       [],
       text: buffer.toString(),
-      subject: 'Split Wise Data Export',
+      subject: 'Spliti5 Data Export',
     );
 
     if (context.mounted) {
@@ -543,7 +616,7 @@ class ProfileScreen extends ConsumerWidget {
       vpa: 'vighnesh.bagal99-1@okicici',
       payeeName: 'Vighnesh Bagal',
       amount: 0,
-      note: 'Support Split Wise',
+      note: 'Support Spliti5',
     );
     if (!ok && context.mounted) {
       Clipboard.setData(const ClipboardData(text: 'vighnesh.bagal99-1@okicici'));

@@ -39,8 +39,8 @@ class QrSyncTransport {
     // Share via system share sheet (WhatsApp, Gmail, etc.).
     final result = await Share.shareXFiles(
       [XFile(file.path)],
-      subject: 'Split Wise Sync: $tripName',
-      text: 'Sync data for trip "$tripName". Import this file in Split Wise to sync.',
+      subject: 'Spliti5 Sync: $tripName',
+      text: 'Sync data for trip "$tripName". Import this file in Spliti5 to sync.',
     );
 
     return ShareResult(

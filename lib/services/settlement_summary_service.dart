@@ -91,7 +91,7 @@ class SettlementSummaryService {
       }
     }
     b.writeln();
-    b.writeln('— Settled via Split Wise');
+    b.writeln('— Settled via Spliti5');
 
     return b.toString();
   }
@@ -175,7 +175,7 @@ class SettlementSummaryService {
             ),
           pw.SizedBox(height: 24),
           pw.Center(
-            child: pw.Text('— Settled via Split Wise —',
+            child: pw.Text('— Settled via Spliti5 —',
                 style: const pw.TextStyle(color: PdfColors.grey)),
           ),
         ],

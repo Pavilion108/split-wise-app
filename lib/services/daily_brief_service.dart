@@ -122,7 +122,7 @@ class DailyBriefService {
       }
     }
     buffer.writeln();
-    buffer.writeln('— Split Wise');
+    buffer.writeln('— Spliti5');
 
     return buffer.toString();
   }

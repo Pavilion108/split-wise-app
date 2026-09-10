@@ -19,6 +19,7 @@ import '../../services/balance_engine.dart';
 import '../../services/settlement_summary_service.dart';
 import '../../services/upi_launcher.dart';
 import '../widgets/responsive_layout.dart';
+import '../widgets/trip_background.dart';
 import 'add_expense_screen.dart';
 import 'member_screen.dart';
 
@@ -79,8 +80,21 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
     final tripAsync = ref.watch(tripStreamProvider(widget.tripId));
     final membersAsync = ref.watch(membersStreamProvider(widget.tripId));
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.3,
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(widget.tripName),
         actions: [
           IconButton(
@@ -143,32 +157,35 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: ResponsiveLayout.contentMaxWidth(context),
-          ),
-          child: balanceAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('$e')),
-            data: (balance) => tripAsync.when(
+      body: TripBackground(
+        currencyCode: tripAsync.value?.baseCurrency ?? 'INR',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: ResponsiveLayout.contentMaxWidth(context),
+            ),
+            child: balanceAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('$e')),
-              data: (trip) {
-                if (trip == null) {
-                  return const Center(child: Text('Trip not found'));
-                }
-                // Wait for members to load — without this, 'me' is null
-                // and all personal stats (paid/share/net) show as 0.
-                final members = membersAsync.value;
-                if (members == null) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final me = members.firstWhereOrNull(
-                  (m) => m.deviceId == ref.read(deviceIdentityProvider).id,
-                );
-                return _buildPage(trip, members, me, balance);
-              },
+              data: (balance) => tripAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('$e')),
+                data: (trip) {
+                  if (trip == null) {
+                    return const Center(child: Text('Trip not found'));
+                  }
+                  // Wait for members to load — without this, 'me' is null
+                  // and all personal stats (paid/share/net) show as 0.
+                  final members = membersAsync.value;
+                  if (members == null) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final me = members.firstWhereOrNull(
+                    (m) => m.deviceId == ref.read(deviceIdentityProvider).id,
+                  );
+                  return _buildPage(trip, members, me, balance);
+                },
+              ),
             ),
           ),
         ),
@@ -176,6 +193,22 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
+        backgroundColor: Colors.black.withValues(alpha: 0.7),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: Colors.white.withValues(alpha: 0.15),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12);
+          }
+          return TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12);
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: Colors.white, size: 24);
+          }
+          return IconThemeData(color: Colors.white.withValues(alpha: 0.6), size: 24);
+        }),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -196,6 +229,8 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'add_expense_fab',
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Colors.white,
         onPressed: () async {
           final repo = ref.read(tripRepositoryProvider);
           final trip = await repo.getTrip(widget.tripId);
@@ -213,6 +248,7 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add Expense'),
       ),
+    ),
     );
   }
 
@@ -1186,7 +1222,7 @@ void _showPayBottomSheet(
                 final ok = await launchUpi(
                   payeeName: payeeName,
                   amount: t.amount,
-                  note: 'Split Wise settlement $refId',
+                   note: 'Spliti5 settlement $refId',
                 );
 
                 if (!ok) {
@@ -2019,7 +2055,7 @@ Future<void> _payViaUpiAndRecord({
   final ok = await launchUpi(
     payeeName: payeeName,
     amount: amount,
-    note: 'Split Wise settlement $refId',
+    note: 'Spliti5 settlement $refId',
   );
   if (!ok) {
     if (context.mounted) {

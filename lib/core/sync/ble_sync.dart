@@ -4,7 +4,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'sync_service.dart';
 
-/// BLE sync transport: discovers nearby Split Wise devices via BLE scanning.
+/// BLE sync transport: discovers nearby Spliti5 devices via BLE scanning.
 /// Works on ALL platforms (Android, iOS, Windows, Mac, Linux).
 ///
 /// NOTE: Full BLE data transfer requires platform-specific GATT implementation.
@@ -22,7 +22,7 @@ class BleSyncTransport {
   Stream<BleDiscoveredDevice> get foundDevices =>
       _foundDevicesController.stream;
 
-  /// Start scanning for nearby Split Wise devices.
+  /// Start scanning for nearby Spliti5 devices.
   Future<void> scan({Duration timeout = const Duration(seconds: 10)}) async {
     if (_scanning) return;
     _scanning = true;

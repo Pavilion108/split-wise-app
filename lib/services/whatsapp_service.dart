@@ -134,7 +134,7 @@ class WhatsAppService {
         'Access trip photos and receipts here:\n'
         '$driveLink\n\n'
         'Invite code: $inviteCode\n'
-        'Open in Split Wise to track expenses!';
+        'Open in Spliti5 to track expenses!';
   }
 
   // --- Message Builders ---
@@ -144,7 +144,7 @@ class WhatsAppService {
     required String inviteCode,
   }) {
     return 'Hey everyone! Welcome to "$tripName" 🎉\n\n'
-        'I\'ve set up our trip on Split Wise so we can easily '
+        'I\'ve set up our trip on Spliti5 so we can easily '
         'track expenses and stay fair with each other.\n\n'
         'Here\'s how to join:\n'
         '1. Visit ${InviteCode.websiteUrl}\n'
@@ -169,7 +169,7 @@ class WhatsAppService {
         '💵 Amount: $currency ${amount.toStringAsFixed(2)}\n'
         '📂 Category: $category\n'
         '${note.isNotEmpty ? '📝 Note: $note\n' : ''}'
-        '\nOpened from Split Wise';
+        '\nOpened from Spliti5';
   }
 
   String _buildTripShareMessage({
@@ -180,7 +180,7 @@ class WhatsAppService {
     return '✈️ Trip: $tripName\n\n'
         '📋 Invite Code: $inviteCode\n'
         '📁 Drive Folder: $driveLink\n\n'
-        'Join on Split Wise app to track expenses together!';
+        'Join on Spliti5 app to track expenses together!';
   }
 
   /// Build a daily brief message from trip balance data.
@@ -210,7 +210,7 @@ class WhatsAppService {
       buffer.writeln('  • ${entry.key}: $status $baseCurrency ${amount.toStringAsFixed(2)}');
     }
     buffer.writeln();
-    buffer.writeln('— Sent via Split Wise');
+    buffer.writeln('— Sent via Spliti5');
 
     return buffer.toString();
   }

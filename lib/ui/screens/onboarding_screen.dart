@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -8,13 +9,6 @@ import '../../providers/app_provider.dart';
 import '../widgets/sign_in_button.dart';
 import 'home_screen.dart';
 
-/// Onboarding flow.
-///
-/// **Web users**: Get Started → Choose "Download App" or "Continue on Web"
-/// → If Continue: Google Sign-In → "Open in App" banner → Home
-///
-/// **App users**: Auto-login via device Google account (silent) → Home
-/// If no device account: Get Started → Google Sign-In → Home
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -26,12 +20,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _step = 0;
   bool _whatsappLinked = false;
 
-  // Steps:
-  // 0 = Welcome / Platform Choice (web only shows choice, app shows Get Started)
-  // 1 = Google Sign-In
-  // 2 = WhatsApp
-  // 3 = Complete
-
   @override
   void initState() {
     super.initState();
@@ -42,7 +30,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final auth = ref.read(authServiceProvider);
     await auth.checkSignIn();
     if (auth.isSignedIn && mounted) {
-      // Auto-login succeeded — skip to home immediately.
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
@@ -53,19 +40,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: IndexedStack(
-              alignment: Alignment.center,
-              index: _step,
-              children: [
-                _buildPlatformChoiceStep(),
-                _buildGoogleSignInStep(),
-                _buildWhatsAppStep(),
-                _buildCompleteStep(),
-              ],
+      backgroundColor: const Color(0xFF0a0a1a),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0f0c29), Color(0xFF1a1a3e), Color(0xFF0a0a1a)],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: IndexedStack(
+                alignment: Alignment.center,
+                index: _step,
+                children: [
+                  _buildPlatformChoiceStep(),
+                  _buildGoogleSignInStep(),
+                  _buildWhatsAppStep(),
+                  _buildCompleteStep(),
+                ],
+              ),
             ),
           ),
         ),
@@ -73,7 +72,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  /// Step 0: Platform Choice (web) or Welcome (app).
   Widget _buildPlatformChoiceStep() {
     if (PlatformDetect.isWeb) {
       return _buildWebPlatformChoice();
@@ -81,172 +79,115 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return _buildAppWelcome();
   }
 
-  /// Web: "Download App" or "Continue on Web".
   Widget _buildWebPlatformChoice() {
-    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long, size: 80, color: cs.primary),
-          const SizedBox(height: 24),
+          // Logo
+          Image.asset(
+            'assets/logo.png',
+            width: 140,
+            height: 140,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(Icons.receipt_long, size: 64, color: Color(0xFF667eea)),
+          ).animate().fadeIn(duration: 600.ms).scale(begin: const Offset(0.8, 0.8)),
+          const SizedBox(height: 32),
           Text(
-            'Split Wise',
+            'Spliti5',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
           const SizedBox(height: 8),
           Text(
             'Track expenses with your group.\nFair splits, zero awkwardness.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: cs.outline,
-                ),
-          ),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 15,
+              height: 1.5,
+            ),
+          ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
           const SizedBox(height: 48),
 
           // Download App card
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => _downloadApk(),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(Icons.phone_android,
-                          color: cs.primary, size: 32),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Download the App',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Best experience — offline, notifications, camera',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: cs.outline),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: cs.primary),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+          _GlassCard(
+            onTap: () => _downloadApk(),
+            icon: Icons.phone_android_rounded,
+            iconColor: const Color(0xFF667eea),
+            title: 'Download the App',
+            subtitle: 'Best experience — offline, notifications, camera',
+          ).animate().fadeIn(delay: 450.ms).slideY(begin: 0.05),
+          const SizedBox(height: 14),
 
           // Continue on Web card
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => setState(() => _step = 1),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: cs.secondary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(Icons.language,
-                          color: cs.secondary, size: 32),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Continue on Web',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'No install needed — works in any browser',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: cs.outline),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: cs.secondary),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
+          _GlassCard(
+            onTap: () => setState(() => _step = 1),
+            icon: Icons.language_rounded,
+            iconColor: const Color(0xFF764ba2),
+            title: 'Continue on Web',
+            subtitle: 'No install needed — works in any browser',
+          ).animate().fadeIn(delay: 550.ms).slideY(begin: 0.05),
+          const SizedBox(height: 28),
           Text(
             'Both versions share the same account & data',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: cs.outline,
-                ),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 12),
           ),
         ],
       ),
     );
   }
 
-  /// App: Simple welcome with Get Started.
   Widget _buildAppWelcome() {
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.receipt_long,
-            size: 96,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 32),
+          Image.asset(
+            'assets/logo.png',
+            width: 160,
+            height: 160,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(Icons.receipt_long, size: 72, color: Color(0xFF667eea)),
+          ).animate().fadeIn(duration: 600.ms).scale(begin: const Offset(0.8, 0.8)),
+          const SizedBox(height: 36),
           Text(
-            'Split Wise',
+            'Spliti5',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 12),
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
+          const SizedBox(height: 10),
           Text(
             'Track expenses with your group.\nFair splits, zero awkwardness.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 15,
+              height: 1.5,
+            ),
           ),
           const Spacer(),
-          FilledButton(
-            onPressed: () => setState(() => _step = 1),
-            child: const Text('Get Started'),
-          ),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              onPressed: () => setState(() => _step = 1),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF667eea),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Get Started', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+          ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.1),
           const SizedBox(height: 16),
         ],
       ),
@@ -268,9 +209,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _buildGoogleSignInStep() {
     final auth = ref.watch(authServiceProvider);
 
-    // If sign-in completed (via renderButton on web or native), navigate to home.
     if (auth.isSignedIn) {
-      // Navigate after frame to avoid setState during build
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           Navigator.of(context).pushReplacement(
@@ -285,17 +224,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.account_circle_outlined,
-            size: 72,
-            color: Theme.of(context).colorScheme.primary,
+          Image.asset(
+            'assets/logo.png',
+            width: 100,
+            height: 100,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(Icons.receipt_long, size: 48, color: Color(0xFF667eea)),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           Text(
             'Sign in with Google',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -304,57 +246,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             '• Syncing your expenses across devices\n'
             '• Same account on web & app',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              height: 1.6,
+            ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 36),
           if (!auth.isSignedIn) const SignInButton(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOpenInAppPrompt() {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.primaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.phone_android, color: cs.primary, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Have the app?',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                Text(
-                  'Open it to auto-login with this account',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: cs.outline,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => launchUrl(
-              Uri.parse(PlatformDetect.apkDownloadUrl),
-              mode: LaunchMode.externalApplication,
-            ),
-            child: const Text('Install'),
-          ),
         ],
       ),
     );
@@ -366,17 +264,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.chat_outlined,
-            size: 72,
-            color: Theme.of(context).colorScheme.primary,
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: const Color(0xFF25D366).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.chat_outlined, color: Color(0xFF25D366), size: 36),
           ),
           const SizedBox(height: 24),
           Text(
             'Link WhatsApp',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -385,21 +288,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             '• Expense notifications\n'
             '• Daily balance summaries',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              height: 1.6,
+            ),
           ),
           const SizedBox(height: 32),
           if (_whatsappLinked)
             Column(
               children: [
-                Icon(Icons.check_circle,
-                    color: Theme.of(context).colorScheme.primary, size: 48),
+                const Icon(Icons.check_circle, color: Color(0xFF25D366), size: 48),
                 const SizedBox(height: 12),
-                Text(
-                  'WhatsApp linked!',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
+                Text('WhatsApp linked!', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 16)),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: () => setState(() => _step = 3),
@@ -415,14 +315,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     final whatsapp = ref.read(whatsAppServiceProvider);
                     final installed = await whatsapp.isWhatsAppInstalled();
                     if (installed) {
-                      await whatsapp.createGroup(
-                        tripName: 'Test',
-                        inviteCode: 'TEST00',
-                      );
+                      await whatsapp.createGroup(tripName: 'Test', inviteCode: 'TEST00');
                     }
-                    if (mounted) {
-                      setState(() => _whatsappLinked = true);
-                    }
+                    if (mounted) setState(() => _whatsappLinked = true);
                   },
                   icon: const Icon(Icons.link),
                   label: const Text('Link WhatsApp'),
@@ -430,7 +325,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => setState(() => _step = 3),
-                  child: const Text('Skip for now'),
+                  child: Text('Skip for now', style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
                 ),
               ],
             ),
@@ -445,17 +340,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 96,
-            color: Theme.of(context).colorScheme.primary,
+          Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              color: const Color(0xFF667eea).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.check_circle_outline, color: Color(0xFF667eea), size: 52),
           ),
           const SizedBox(height: 32),
           Text(
-            'You\'re all set!',
+            "You're all set!",
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -463,9 +363,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             'Photos will be stored in Google Drive.\n'
             'Updates will be sent on WhatsApp.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.55), height: 1.6),
           ),
           const Spacer(),
           if (PlatformDetect.isWeb)
@@ -474,22 +372,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primaryContainer
-                      .withValues(alpha: 0.5),
+                  color: Colors.white.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.phone_android,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.primary),
+                    Icon(Icons.phone_android, size: 18, color: Colors.white.withValues(alpha: 0.6)),
                     const SizedBox(width: 8),
                     Text(
                       'Download the app for the full experience',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                     ),
                     TextButton(
                       onPressed: _downloadApk,
@@ -499,16 +392,91 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
               ),
             ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
-              );
-            },
-            child: const Text('Start Splitting'),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              onPressed: () {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF667eea),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Start Splitting', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
           ),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+}
+
+/// Glass-card button for the onboarding choices.
+class _GlassCard extends StatelessWidget {
+  const _GlassCard({
+    required this.onTap,
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final VoidCallback onTap;
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.3)),
+          ],
+        ),
       ),
     );
   }
