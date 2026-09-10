@@ -6,7 +6,7 @@ import '../../core/platform/platform_detect.dart';
 import '../../core/platform/web_download.dart';
 import '../../providers/app_provider.dart';
 import '../widgets/sign_in_button.dart';
-import '../widgets/airplane_branding.dart';
+import '../widgets/video_background.dart';
 import 'home_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -40,17 +40,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0a0a1a),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0f0c29), Color(0xFF1a1a3e), Color(0xFF0a0a1a)],
-          ),
-        ),
+      backgroundColor: Colors.black,
+      body: VideoBackground(
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
@@ -85,18 +76,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Airplane branding animation
-          const AirplaneBranding(airplaneSize: 56, textSize: 44),
-          const SizedBox(height: 16),
+          // Brand text only — video is the visual
+          Text(
+            'Spliti5',
+            style: TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+              shadows: [
+                Shadow(blurRadius: 20, color: const Color(0xFF667eea).withValues(alpha: 0.5)),
+              ],
+            ),
+          ).animate().fadeIn(delay: 300.ms, duration: 800.ms).scale(
+            begin: const Offset(0.9, 0.9),
+            end: const Offset(1.0, 1.0),
+            duration: 600.ms,
+            curve: Curves.easeOutBack,
+          ),
+          const SizedBox(height: 12),
           Text(
             'Track expenses with your group.\nFair splits, zero awkwardness.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.55),
-              fontSize: 15,
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 16,
               height: 1.5,
             ),
-          ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
+          ).animate().fadeIn(delay: 600.ms, duration: 600.ms),
           const SizedBox(height: 48),
 
           // Download App card
@@ -133,14 +140,30 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const AirplaneBranding(airplaneSize: 64, textSize: 48),
-          const SizedBox(height: 20),
+          Text(
+            'Spliti5',
+            style: TextStyle(
+              fontSize: 52,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+              shadows: [
+                Shadow(blurRadius: 20, color: const Color(0xFF667eea).withValues(alpha: 0.5)),
+              ],
+            ),
+          ).animate().fadeIn(delay: 300.ms, duration: 800.ms).scale(
+            begin: const Offset(0.9, 0.9),
+            end: const Offset(1.0, 1.0),
+            duration: 600.ms,
+            curve: Curves.easeOutBack,
+          ),
+          const SizedBox(height: 14),
           Text(
             'Track expenses with your group.\nFair splits, zero awkwardness.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.55),
-              fontSize: 15,
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 16,
               height: 1.5,
             ),
           ),
@@ -194,7 +217,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const AirplaneBranding(airplaneSize: 40, textSize: 28),
+          Text(
+            'Spliti5',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.3,
+            ),
+          ),
           const SizedBox(height: 20),
           Text(
             'Sign in with Google',
