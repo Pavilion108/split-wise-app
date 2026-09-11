@@ -51,84 +51,68 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Widget _buildButtonsOverlay() {
-    return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              children: [
-                // Top spacer — pushes brand name to upper third
-                const Spacer(flex: 3),
-
-                // Brand name — centered in upper area
-                Text(
-                  'Spliti5',
-                  style: TextStyle(
-                    fontSize: 44,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                    shadows: [
-                      Shadow(blurRadius: 24, color: const Color(0xFF667eea).withValues(alpha: 0.6)),
-                    ],
-                  ),
-                ).animate().fadeIn(delay: 200.ms, duration: 700.ms).scale(
-                  begin: const Offset(0.92, 0.92),
-                  end: const Offset(1.0, 1.0),
-                  duration: 500.ms,
-                  curve: Curves.easeOutBack,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Fair splits, zero awkwardness.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.65),
-                    fontSize: 15,
-                    height: 1.4,
-                  ),
-                ).animate().fadeIn(delay: 500.ms, duration: 600.ms),
-
-                // Middle spacer — pushes buttons to bottom
-                const Spacer(flex: 5),
-
-                // Buttons — always pinned to bottom
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: Column(
-                    children: [
-                      _ActionCard(
-                        onTap: _downloadApk,
-                        icon: Icons.phone_android_rounded,
-                        iconColor: const Color(0xFF667eea),
-                        title: 'Download the App',
-                        subtitle: 'Best experience — offline, notifications, camera',
-                      ).animate().fadeIn(delay: 800.ms, duration: 600.ms).slideY(begin: 0.08, end: 0),
-                      const SizedBox(height: 12),
-                      _ActionCard(
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const _GoogleSignInPage()),
-                        ),
-                        icon: Icons.language_rounded,
-                        iconColor: const Color(0xFF764ba2),
-                        title: 'Continue on Web',
-                        subtitle: 'No install needed — works in any browser',
-                      ).animate().fadeIn(delay: 1000.ms, duration: 600.ms).slideY(begin: 0.08, end: 0),
-                      const SizedBox(height: 14),
-                      Text(
-                        'Both versions share the same account & data',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
-                      ).animate().fadeIn(delay: 1200.ms, duration: 500.ms),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
+    return Stack(
+      children: [
+        // Bottom gradient — makes buttons readable over video
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 280,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.7),
+                  Colors.black.withValues(alpha: 0.92),
+                ],
+              ),
             ),
-          );
-        },
-      ),
+          ),
+        ),
+        // Buttons — centered at bottom, on top of gradient
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(28, 0, 28, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ActionCard(
+                    onTap: _downloadApk,
+                    icon: Icons.phone_android_rounded,
+                    iconColor: const Color(0xFF667eea),
+                    title: 'Download the App',
+                    subtitle: 'Best experience — offline, notifications, camera',
+                  ).animate().fadeIn(delay: 200.ms, duration: 700.ms).slideY(begin: 0.12, end: 0),
+                  const SizedBox(height: 10),
+                  _ActionCard(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const _GoogleSignInPage()),
+                    ),
+                    icon: Icons.language_rounded,
+                    iconColor: const Color(0xFF764ba2),
+                    title: 'Continue on Web',
+                    subtitle: 'No install needed — works in any browser',
+                  ).animate().fadeIn(delay: 450.ms, duration: 700.ms).slideY(begin: 0.12, end: 0),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Both versions share the same account & data',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11),
+                  ).animate().fadeIn(delay: 700.ms, duration: 500.ms),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
