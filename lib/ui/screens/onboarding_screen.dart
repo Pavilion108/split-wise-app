@@ -52,16 +52,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Widget _buildButtonsOverlay() {
     return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const Spacer(),
-                // Brand name
+                // Top spacer — pushes brand name to upper third
+                const Spacer(flex: 3),
+
+                // Brand name — centered in upper area
                 Text(
                   'Spliti5',
                   style: TextStyle(
@@ -89,38 +89,45 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     height: 1.4,
                   ),
                 ).animate().fadeIn(delay: 500.ms, duration: 600.ms),
-                const Spacer(flex: 2),
 
-                // Download App button
-                _ActionCard(
-                  onTap: _downloadApk,
-                  icon: Icons.phone_android_rounded,
-                  iconColor: const Color(0xFF667eea),
-                  title: 'Download the App',
-                  subtitle: 'Best experience — offline, notifications, camera',
-                ).animate().fadeIn(delay: 800.ms, duration: 600.ms).slideY(begin: 0.08, end: 0),
-                const SizedBox(height: 12),
+                // Middle spacer — pushes buttons to bottom
+                const Spacer(flex: 5),
 
-                // Continue on Web button
-                _ActionCard(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const _GoogleSignInPage()),
+                // Buttons — always pinned to bottom
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  child: Column(
+                    children: [
+                      _ActionCard(
+                        onTap: _downloadApk,
+                        icon: Icons.phone_android_rounded,
+                        iconColor: const Color(0xFF667eea),
+                        title: 'Download the App',
+                        subtitle: 'Best experience — offline, notifications, camera',
+                      ).animate().fadeIn(delay: 800.ms, duration: 600.ms).slideY(begin: 0.08, end: 0),
+                      const SizedBox(height: 12),
+                      _ActionCard(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const _GoogleSignInPage()),
+                        ),
+                        icon: Icons.language_rounded,
+                        iconColor: const Color(0xFF764ba2),
+                        title: 'Continue on Web',
+                        subtitle: 'No install needed — works in any browser',
+                      ).animate().fadeIn(delay: 1000.ms, duration: 600.ms).slideY(begin: 0.08, end: 0),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Both versions share the same account & data',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+                      ).animate().fadeIn(delay: 1200.ms, duration: 500.ms),
+                    ],
                   ),
-                  icon: Icons.language_rounded,
-                  iconColor: const Color(0xFF764ba2),
-                  title: 'Continue on Web',
-                  subtitle: 'No install needed — works in any browser',
-                ).animate().fadeIn(delay: 1000.ms, duration: 600.ms).slideY(begin: 0.08, end: 0),
-                const SizedBox(height: 16),
-                Text(
-                  'Both versions share the same account & data',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
-                ).animate().fadeIn(delay: 1200.ms, duration: 500.ms),
-                const SizedBox(height: 12),
+                ),
+                const SizedBox(height: 8),
               ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
