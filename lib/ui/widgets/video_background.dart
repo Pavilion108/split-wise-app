@@ -1,14 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
-/// Full-page looping video background for web onboarding.
-/// Injects an HTML5 <video> element directly into the DOM.
+/// Full-page video background that plays once then freezes.
+/// After [duration] seconds, calls [onLoopComplete].
 class VideoBackground extends StatefulWidget {
   final Widget child;
+  final Duration duration;
+  final VoidCallback? onLoopComplete;
 
   const VideoBackground({
     super.key,
     required this.child,
+    this.duration = const Duration(seconds: 10),
+    this.onLoopComplete,
   });
 
   @override
@@ -17,6 +22,7 @@ class VideoBackground extends StatefulWidget {
 
 class _VideoBackgroundState extends State<VideoBackground> {
   web.HTMLVideoElement? _videoElement;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -36,13 +42,13 @@ class _VideoBackgroundState extends State<VideoBackground> {
     final video = web.HTMLVideoElement()
       ..id = 'spliti5-video-bg'
       ..autoplay = true
-      ..loop = true
+      ..loop = false
       ..muted = true
       ..playsInline = true
       ..setAttribute('playsinline', '')
       ..style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:0;pointer-events:none;';
 
-    // WebM source (Chrome, Firefox — smaller)
+    // WebM source (Chrome, Firefox)
     final webmSource = web.HTMLSourceElement()
       ..src = 'assets/assets/animations/airplane_bg.webm'
       ..type = 'video/webm';
@@ -57,12 +63,20 @@ class _VideoBackgroundState extends State<VideoBackground> {
     web.document.body?.appendChild(video);
     _videoElement = video;
 
-    // Autoplay must be triggered by user gesture or after muted
     video.play();
+
+    // After duration, freeze the video and notify
+    _timer = Timer(widget.duration, () {
+      if (mounted) {
+        video.pause();
+        widget.onLoopComplete?.call();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _videoElement?.pause();
     _videoElement?.remove();
     _videoElement = null;
@@ -73,7 +87,7 @@ class _VideoBackgroundState extends State<VideoBackground> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Gradient fallback while video loads / on unsupported browsers
+        // Gradient fallback while video loads
         Container(
           width: double.infinity,
           height: double.infinity,
@@ -94,9 +108,9 @@ class _VideoBackgroundState extends State<VideoBackground> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withValues(alpha: 0.35),
-                Colors.black.withValues(alpha: 0.45),
-                Colors.black.withValues(alpha: 0.35),
+                Colors.black.withValues(alpha: 0.4),
+                Colors.black.withValues(alpha: 0.55),
+                Colors.black.withValues(alpha: 0.4),
               ],
             ),
           ),
