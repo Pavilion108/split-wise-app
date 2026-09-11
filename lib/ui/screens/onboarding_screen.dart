@@ -1,13 +1,15 @@
 import 'dart:async';
+import 'dart:js_interop';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web/web.dart' as web;
 
 import '../../core/platform/platform_detect.dart';
 import '../../core/platform/web_download.dart';
 import '../../providers/app_provider.dart';
 import '../widgets/sign_in_button.dart';
 import '../widgets/video_background.dart';
+import '../widgets/model_3d_overlay.dart';
 import 'home_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -20,15 +22,17 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _videoDone = false;
   Timer? _fallbackTimer;
+  StreamSubscription<web.Event>? _downloadSub;
+  StreamSubscription<web.Event>? _webSub;
 
   @override
   void initState() {
     super.initState();
     _checkAuth();
-    // Fallback: show buttons after 5s even if video callback fails
     _fallbackTimer = Timer(const Duration(seconds: 5), () {
       if (mounted && !_videoDone) setState(() => _videoDone = true);
     });
+    _listenForButtons();
   }
 
   Future<void> _checkAuth() async {
@@ -42,26 +46,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _fallbackTimer?.cancel();
-    super.dispose();
+  void _listenForButtons() {
+    web.document.addEventListener(
+      'spliti5-download',
+      ((JSAny? e) {
+        _downloadApk();
+      }).toJS,
+    );
+    web.document.addEventListener(
+      'spliti5-web',
+      ((JSAny? e) {
+        _openWebSignIn();
+      }).toJS,
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: VideoBackground(
-        duration: const Duration(seconds: 10),
-        onLoopComplete: () {
-          if (mounted) setState(() => _videoDone = true);
-        },
-        child: _videoDone
-            ? _ButtonsOverlay(onDownload: _downloadApk, onWeb: _openWebSignIn)
-            : const SizedBox.shrink(),
-      ),
-    );
+  void dispose() {
+    _fallbackTimer?.cancel();
+    _downloadSub?.cancel();
+    _webSub?.cancel();
+    super.dispose();
   }
 
   void _openWebSignIn() {
@@ -81,63 +86,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
     }
   }
-}
-
-/// Buttons that appear at the bottom of the frozen video.
-class _ButtonsOverlay extends StatelessWidget {
-  final VoidCallback onDownload;
-  final VoidCallback onWeb;
-
-  const _ButtonsOverlay({required this.onDownload, required this.onWeb});
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.only(top: 60),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.transparent,
-              Colors.black.withValues(alpha: 0.6),
-              Colors.black.withValues(alpha: 0.88),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ActionCard(
-                  onTap: onDownload,
-                  icon: Icons.phone_android_rounded,
-                  iconColor: const Color(0xFF667eea),
-                  title: 'Download the App',
-                  subtitle: 'Best experience — offline, notifications, camera',
-                ).animate().fadeIn(delay: 200.ms, duration: 700.ms).slideY(begin: 0.15, end: 0),
-                const SizedBox(height: 10),
-                _ActionCard(
-                  onTap: onWeb,
-                  icon: Icons.language_rounded,
-                  iconColor: const Color(0xFF764ba2),
-                  title: 'Continue on Web',
-                  subtitle: 'No install needed — works in any browser',
-                ).animate().fadeIn(delay: 450.ms, duration: 700.ms).slideY(begin: 0.15, end: 0),
-                const SizedBox(height: 10),
-                Text(
-                  'Both versions share the same account & data',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11),
-                ).animate().fadeIn(delay: 700.ms, duration: 500.ms),
-              ],
-            ),
-          ),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: VideoBackground(
+        duration: const Duration(seconds: 10),
+        onLoopComplete: () {
+          if (mounted) setState(() => _videoDone = true);
+        },
+        child: Stack(
+          children: [
+            // 3D Model overlay (HTML) — shows after video freezes
+            Model3DOverlay(show: _videoDone),
+            // Bottom gradient for readability
+            if (_videoDone)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 260,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.5),
+                        Colors.black.withValues(alpha: 0.85),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -231,73 +215,6 @@ class _GoogleSignInPage extends ConsumerWidget {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Action card button.
-class _ActionCard extends StatelessWidget {
-  final VoidCallback onTap;
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-
-  const _ActionCard({
-    required this.onTap,
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.20),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: iconColor, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.5), size: 20),
-          ],
         ),
       ),
     );
