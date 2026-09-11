@@ -94,9 +94,9 @@ class _VideoBackgroundState extends State<VideoBackground> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withValues(alpha: 0.4),
-                Colors.black.withValues(alpha: 0.55),
-                Colors.black.withValues(alpha: 0.4),
+                Colors.black.withValues(alpha: 0.35),
+                Colors.black.withValues(alpha: 0.45),
+                Colors.black.withValues(alpha: 0.35),
               ],
             ),
           ),

@@ -72,7 +72,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Widget _buildWebPlatformChoice() {
     return Padding(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -94,17 +94,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             duration: 600.ms,
             curve: Curves.easeOutBack,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             'Track expenses with your group.\nFair splits, zero awkwardness.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 16,
-              height: 1.5,
+              fontSize: 15,
+              height: 1.4,
             ),
           ).animate().fadeIn(delay: 600.ms, duration: 600.ms),
-          const SizedBox(height: 48),
+          const SizedBox(height: 36),
 
           // Download App card
           _GlassCard(
@@ -114,7 +114,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             title: 'Download the App',
             subtitle: 'Best experience — offline, notifications, camera',
           ).animate().fadeIn(delay: 450.ms).slideY(begin: 0.05),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Continue on Web card
           _GlassCard(
@@ -124,10 +124,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             title: 'Continue on Web',
             subtitle: 'No install needed — works in any browser',
           ).animate().fadeIn(delay: 550.ms).slideY(begin: 0.05),
-          const SizedBox(height: 28),
+          const SizedBox(height: 20),
           Text(
             'Both versions share the same account & data',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 12),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
           ),
         ],
       ),
@@ -432,23 +432,23 @@ class _GlassCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
+          color: Colors.white.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+                color: iconColor.withValues(alpha: 0.20),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: iconColor, size: 28),
+              child: Icon(icon, color: iconColor, size: 26),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,12 +464,12 @@ class _GlassCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 12),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.3)),
+            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.5)),
           ],
         ),
       ),
