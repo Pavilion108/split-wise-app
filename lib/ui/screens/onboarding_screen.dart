@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,11 +19,16 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _videoDone = false;
+  Timer? _fallbackTimer;
 
   @override
   void initState() {
     super.initState();
     _checkAuth();
+    // Fallback: show buttons after 5s even if video callback fails
+    _fallbackTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted && !_videoDone) setState(() => _videoDone = true);
+    });
   }
 
   Future<void> _checkAuth() async {
@@ -37,6 +43,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   @override
+  void dispose() {
+    _fallbackTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
@@ -45,74 +57,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         onLoopComplete: () {
           if (mounted) setState(() => _videoDone = true);
         },
-        child: _videoDone ? _buildButtonsOverlay() : const SizedBox.shrink(),
+        child: _videoDone
+            ? _ButtonsOverlay(onDownload: _downloadApk, onWeb: _openWebSignIn)
+            : const SizedBox.shrink(),
       ),
     );
   }
 
-  Widget _buildButtonsOverlay() {
-    return Stack(
-      children: [
-        // Bottom gradient — makes buttons readable over video
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 280,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: 0.7),
-                  Colors.black.withValues(alpha: 0.92),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // Buttons — centered at bottom, on top of gradient
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(28, 0, 28, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _ActionCard(
-                    onTap: _downloadApk,
-                    icon: Icons.phone_android_rounded,
-                    iconColor: const Color(0xFF667eea),
-                    title: 'Download the App',
-                    subtitle: 'Best experience — offline, notifications, camera',
-                  ).animate().fadeIn(delay: 200.ms, duration: 700.ms).slideY(begin: 0.12, end: 0),
-                  const SizedBox(height: 10),
-                  _ActionCard(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const _GoogleSignInPage()),
-                    ),
-                    icon: Icons.language_rounded,
-                    iconColor: const Color(0xFF764ba2),
-                    title: 'Continue on Web',
-                    subtitle: 'No install needed — works in any browser',
-                  ).animate().fadeIn(delay: 450.ms, duration: 700.ms).slideY(begin: 0.12, end: 0),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Both versions share the same account & data',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11),
-                  ).animate().fadeIn(delay: 700.ms, duration: 500.ms),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+  void _openWebSignIn() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const _GoogleSignInPage()),
     );
   }
 
@@ -129,7 +83,68 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-/// Clean Google sign-in page — single purpose, no wizard.
+/// Buttons that appear at the bottom of the frozen video.
+class _ButtonsOverlay extends StatelessWidget {
+  final VoidCallback onDownload;
+  final VoidCallback onWeb;
+
+  const _ButtonsOverlay({required this.onDownload, required this.onWeb});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.only(top: 60),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.transparent,
+              Colors.black.withValues(alpha: 0.6),
+              Colors.black.withValues(alpha: 0.88),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ActionCard(
+                  onTap: onDownload,
+                  icon: Icons.phone_android_rounded,
+                  iconColor: const Color(0xFF667eea),
+                  title: 'Download the App',
+                  subtitle: 'Best experience — offline, notifications, camera',
+                ).animate().fadeIn(delay: 200.ms, duration: 700.ms).slideY(begin: 0.15, end: 0),
+                const SizedBox(height: 10),
+                _ActionCard(
+                  onTap: onWeb,
+                  icon: Icons.language_rounded,
+                  iconColor: const Color(0xFF764ba2),
+                  title: 'Continue on Web',
+                  subtitle: 'No install needed — works in any browser',
+                ).animate().fadeIn(delay: 450.ms, duration: 700.ms).slideY(begin: 0.15, end: 0),
+                const SizedBox(height: 10),
+                Text(
+                  'Both versions share the same account & data',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11),
+                ).animate().fadeIn(delay: 700.ms, duration: 500.ms),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Google sign-in page — clean, single purpose.
 class _GoogleSignInPage extends ConsumerWidget {
   const _GoogleSignInPage();
 
@@ -137,7 +152,6 @@ class _GoogleSignInPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authServiceProvider);
 
-    // Already signed in — go to home
     if (auth.isSignedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.mounted) {
@@ -169,7 +183,6 @@ class _GoogleSignInPage extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Brand
                     Text(
                       'Spliti5',
                       style: TextStyle(
@@ -224,7 +237,7 @@ class _GoogleSignInPage extends ConsumerWidget {
   }
 }
 
-/// Action card button for the overlay.
+/// Action card button.
 class _ActionCard extends StatelessWidget {
   final VoidCallback onTap;
   final IconData icon;
@@ -245,44 +258,45 @@ class _ActionCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 color: iconColor.withValues(alpha: 0.20),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: iconColor, size: 24),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.5)),
+            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.5), size: 20),
           ],
         ),
       ),
