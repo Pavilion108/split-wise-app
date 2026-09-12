@@ -84,10 +84,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _openWebSignIn() {
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const _GoogleSignInPage()),
-    );
+    web.window.location.href = web.window.location.href;
   }
 
   Future<void> _downloadApk() async {
@@ -135,7 +132,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ),
               ),
-            Model3DOverlay(show: _popupVisible),
+             Model3DOverlay(show: _popupVisible),
+            if (_popupVisible)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: SignInButton(),
+                ),
+              ),
           ],
         ),
       ),
@@ -143,94 +148,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-class _GoogleSignInPage extends ConsumerWidget {
-  const _GoogleSignInPage();
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authServiceProvider);
 
-    if (auth.isSignedIn) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-        }
-      });
-    }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0a0a1a),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0f0c29), Color(0xFF1a1a3e), Color(0xFF0a0a1a)],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 380),
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Spliti5',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.3,
-                        shadows: [
-                          Shadow(blurRadius: 16, color: const Color(0xFF667eea).withValues(alpha: 0.4)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    Text(
-                      'Sign in to continue',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Your Google account is used for:\n'
-                      '\u2022 Syncing expenses across devices\n'
-                      '\u2022 Storing trip photos in Google Drive\n'
-                      '\u2022 Same account on web & app',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        height: 1.6,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                    if (!auth.isSignedIn) const SignInButton(),
-                    const SizedBox(height: 24),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(
-                        'Back',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
