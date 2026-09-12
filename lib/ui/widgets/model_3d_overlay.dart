@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
 /// Injects model-viewer 3D models into the DOM as an overlay.
-/// Glassmorphism popup with two models and onclick handlers.
-/// Uses inline JS directly in onclick — no script injection needed.
+/// Glassmorphism popup with two models.
+/// Uses Dart onClick streams — no inline JS, no script injection.
 class Model3DOverlay extends StatefulWidget {
   final bool show;
 
@@ -88,19 +88,19 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         -webkit-backdrop-filter:blur(28px) saturate(1.4);
         border:1px solid rgba(255,255,255,0.12);
         border-radius:24px;
-        padding:20px 24px 16px;
+        padding:20px 24px 20px;
         max-width:520px;
         width:100%;
         animation: spliti5Glow 4s ease-in-out infinite;
       ''';
 
-    // Download App card — inline JS writes directly to the hidden div
+    // Download App card — Dart onClick stream writes to hidden div
     final downloadCard = _createModelCard(
       modelSrc:
           'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb',
       title: 'Download the App',
       subtitle: 'Best experience \u2014 offline, notifications, camera',
-      onclick: "document.getElementById('spliti5-action').textContent='download'",
+      actionValue: 'download',
       accentColor: '102,126,234',
     );
 
@@ -113,13 +113,13 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         margin:4px 0;
       ''';
 
-    // Continue on Web card — inline JS writes directly to the hidden div
+    // Continue on Web card — Dart onClick stream writes to hidden div
     final webCard = _createModelCard(
       modelSrc:
           'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
       title: 'Continue on Web',
       subtitle: 'No install needed \u2014 works in any browser',
-      onclick: "document.getElementById('spliti5-action').textContent='web'",
+      actionValue: 'web',
       accentColor: '118,75,162',
     );
 
@@ -128,28 +128,18 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
     box.appendChild(webCard);
     container.appendChild(box);
 
-    // Footer note — INSIDE the glassmorphism, below the box
+    // Footer — floating line OUTSIDE the glass box
     final footer = web.HTMLDivElement()
-      ..style.cssText = '''
-        pointer-events:none;
-        text-align:center;
-        margin-top:12px;
-        padding:8px 20px;
-        background:rgba(255,255,255,0.04);
-        border-radius:12px;
-        border:1px solid rgba(255,255,255,0.06);
-        max-width:520px;
-        width:100%;
-      ''';
-    final footerText = web.HTMLDivElement()
       ..innerText = 'Both versions share the same account & data'
       ..style.cssText = '''
-        color:rgba(255,255,255,0.4);
+        color:rgba(255,255,255,0.35);
         font-size:11px;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         letter-spacing:0.2px;
+        margin-top:10px;
+        text-align:center;
+        pointer-events:none;
       ''';
-    footer.appendChild(footerText);
     container.appendChild(footer);
 
     web.document.body?.appendChild(container);
@@ -160,11 +150,10 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
     required String modelSrc,
     required String title,
     required String subtitle,
-    required String onclick,
+    required String actionValue,
     required String accentColor,
   }) {
     final card = web.HTMLDivElement()
-      ..setAttribute('onclick', onclick)
       ..style.cssText = '''
         flex:1;
         display:flex;
@@ -176,6 +165,12 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         border-radius:16px;
         border:1px solid transparent;
       ''';
+
+    // Pure Dart onClick — writes action to hidden div for Flutter to poll
+    card.onClick.listen((_) {
+      final ch = web.document.getElementById('spliti5-action');
+      if (ch != null) ch.textContent = actionValue;
+    });
 
     card.onMouseOver.listen((_) {
       card.style.background = 'rgba(255,255,255,0.07)';
