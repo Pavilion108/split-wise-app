@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
 /// Injects model-viewer 3D models into the DOM as an overlay.
-/// Shows two models (phone + globe) inside a glassmorphism popup.
+/// Shows two models inside a glassmorphism popup with onclick handlers
+/// that call global JS functions registered by the Flutter onboarding screen.
 class Model3DOverlay extends StatefulWidget {
   final bool show;
 
@@ -29,17 +30,16 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
     if (!mounted) return;
     _removeModels();
 
-    // Load model-viewer script if not already loaded
     final existingScript = web.document.getElementById('model-viewer-script');
     if (existingScript == null) {
       final script = web.HTMLScriptElement()
         ..id = 'model-viewer-script'
-        ..src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js'
+        ..src =
+            'https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js'
         ..type = 'module';
       web.document.head?.appendChild(script);
     }
 
-    // Create overlay container
     final container = web.HTMLDivElement()
       ..id = 'spliti5-3d-overlay'
       ..style.cssText = '''
@@ -52,7 +52,6 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         padding:0 20px 20px;
       ''';
 
-    // Inner glassmorphism box
     final box = web.HTMLDivElement()
       ..style.cssText = '''
         pointer-events:auto;
@@ -71,22 +70,20 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         box-shadow:0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
       ''';
 
-    // --- Download App Card ---
     final downloadCard = _createModelCard(
-      modelSrc: 'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb',
-      iconColor: '#667eea',
+      modelSrc:
+          'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb',
       title: 'Download the App',
-      subtitle: 'Offline · Notifications · Camera',
-      buttonId: 'spliti5-btn-download',
+      subtitle: 'Offline \u00B7 Notifications \u00B7 Camera',
+      onclick: 'spliti5DownloadApk()',
     );
 
-    // --- Continue on Web Card ---
     final webCard = _createModelCard(
-      modelSrc: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
-      iconColor: '#764ba2',
+      modelSrc:
+          'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
       title: 'Continue on Web',
-      subtitle: 'No install · Any browser',
-      buttonId: 'spliti5-btn-web',
+      subtitle: 'No install \u00B7 Any browser',
+      onclick: 'spliti5OpenWeb()',
     );
 
     box.appendChild(downloadCard);
@@ -98,24 +95,23 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
 
   web.HTMLDivElement _createModelCard({
     required String modelSrc,
-    required String iconColor,
     required String title,
     required String subtitle,
-    required String buttonId,
+    required String onclick,
   }) {
     final card = web.HTMLDivElement()
+      ..setAttribute('onclick', onclick)
       ..style.cssText = '''
         flex:1;
         display:flex;
         flex-direction:column;
         align-items:center;
         cursor:pointer;
-        transition:transform 0.2s;
+        transition:transform 0.2s, background 0.2s;
         padding:8px;
         border-radius:14px;
       ''';
 
-    // Hover effect
     card.onMouseOver.listen((_) {
       card.style.background = 'rgba(255,255,255,0.06)';
       card.style.transform = 'scale(1.03)';
@@ -125,24 +121,22 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
       card.style.transform = 'scale(1)';
     });
 
-    // model-viewer element
-    final modelViewer = (web.document.createElement('model-viewer') as web.HTMLElement)
-      ..setAttribute('src', modelSrc)
-      ..setAttribute('alt', title)
-      ..setAttribute('camera-controls', '')
-      ..setAttribute('auto-rotate', '')
-      ..setAttribute('disable-zoom', '')
-      ..setAttribute('shadow-intensity', '0')
-      ..setAttribute('environment-image', 'neutral')
-      ..setAttribute('interaction-prompt', 'none')
-      ..style.cssText = '''
+    final modelViewer =
+        (web.document.createElement('model-viewer') as web.HTMLElement)
+          ..setAttribute('src', modelSrc)
+          ..setAttribute('alt', title)
+          ..setAttribute('auto-rotate', '')
+          ..setAttribute('shadow-intensity', '0')
+          ..setAttribute('environment-image', 'neutral')
+          ..setAttribute('interaction-prompt', 'none')
+          ..style.cssText = '''
         width:100%;
         height:120px;
         background:transparent;
         --poster-color:transparent;
+        pointer-events:none;
       ''';
 
-    // Title
     final titleEl = web.HTMLDivElement()
       ..innerText = title
       ..style.cssText = '''
@@ -154,7 +148,6 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
       ''';
 
-    // Subtitle
     final subtitleEl = web.HTMLDivElement()
       ..innerText = subtitle
       ..style.cssText = '''
@@ -168,17 +161,6 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
     card.appendChild(modelViewer);
     card.appendChild(titleEl);
     card.appendChild(subtitleEl);
-    card.id = buttonId;
-
-    // Dispatch custom event on click for Flutter to catch
-    card.onClick.listen((_) {
-      final eventName = buttonId == 'spliti5-btn-download'
-          ? 'spliti5-download'
-          : 'spliti5-web';
-      web.document.dispatchEvent(
-        web.CustomEvent(eventName),
-      );
-    });
 
     return card;
   }

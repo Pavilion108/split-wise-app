@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:web/web.dart' as web;
 
 import '../../core/platform/platform_detect.dart';
 import '../../core/platform/web_download.dart';
@@ -11,6 +10,12 @@ import '../widgets/sign_in_button.dart';
 import '../widgets/video_background.dart';
 import '../widgets/model_3d_overlay.dart';
 import 'home_screen.dart';
+
+@JS('window.spliti5DownloadApk')
+external set _spliti5DownloadApk(JSFunction fn);
+
+@JS('window.spliti5OpenWeb')
+external set _spliti5OpenWeb(JSFunction fn);
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -22,8 +27,6 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _videoDone = false;
   Timer? _fallbackTimer;
-  StreamSubscription<web.Event>? _downloadSub;
-  StreamSubscription<web.Event>? _webSub;
 
   @override
   void initState() {
@@ -32,7 +35,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _fallbackTimer = Timer(const Duration(seconds: 5), () {
       if (mounted && !_videoDone) setState(() => _videoDone = true);
     });
-    _listenForButtons();
+    _registerGlobalCallbacks();
   }
 
   Future<void> _checkAuth() async {
@@ -46,30 +49,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  void _listenForButtons() {
-    web.document.addEventListener(
-      'spliti5-download',
-      ((JSAny? e) {
-        _downloadApk();
-      }).toJS,
-    );
-    web.document.addEventListener(
-      'spliti5-web',
-      ((JSAny? e) {
-        _openWebSignIn();
-      }).toJS,
-    );
+  void _registerGlobalCallbacks() {
+    _spliti5DownloadApk = ((JSAny? _) {
+      _downloadApk();
+    }).toJS;
+    _spliti5OpenWeb = ((JSAny? _) {
+      _openWebSignIn();
+    }).toJS;
   }
 
   @override
   void dispose() {
     _fallbackTimer?.cancel();
-    _downloadSub?.cancel();
-    _webSub?.cancel();
     super.dispose();
   }
 
   void _openWebSignIn() {
+    if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const _GoogleSignInPage()),
     );
@@ -98,9 +94,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         },
         child: Stack(
           children: [
-            // 3D Model overlay (HTML) — shows after video freezes
             Model3DOverlay(show: _videoDone),
-            // Bottom gradient for readability
             if (_videoDone)
               Positioned(
                 left: 0,
@@ -128,7 +122,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-/// Google sign-in page — clean, single purpose.
 class _GoogleSignInPage extends ConsumerWidget {
   const _GoogleSignInPage();
 
