@@ -154,7 +154,6 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
     required String actionValue,
     required String accentColor,
   }) {
-    // Card wrapper — relative positioning for absolute overlay
     final card = web.HTMLDivElement()
       ..style.cssText = '''
         flex:1;
@@ -167,6 +166,7 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         border-radius:16px;
         border:1px solid transparent;
         position:relative;
+        pointer-events:none;
       ''';
 
     // Hover effects
@@ -238,10 +238,11 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
       ''';
 
-    card.appendChild(overlay);
+    // Append overlay LAST so it's on top of model-viewer shadow DOM
     card.appendChild(modelViewer);
     card.appendChild(titleEl);
     card.appendChild(subtitleEl);
+    card.appendChild(overlay); // on top of everything
 
     return card;
   }
