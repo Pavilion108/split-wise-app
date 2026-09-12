@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:js_interop';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web/web.dart' as web;
 
 import '../../core/platform/platform_detect.dart';
 import '../../core/platform/web_download.dart';
@@ -10,12 +10,6 @@ import '../widgets/sign_in_button.dart';
 import '../widgets/video_background.dart';
 import '../widgets/model_3d_overlay.dart';
 import 'home_screen.dart';
-
-@JS('window.spliti5DownloadApk')
-external set _spliti5DownloadApk(JSFunction fn);
-
-@JS('window.spliti5OpenWeb')
-external set _spliti5OpenWeb(JSFunction fn);
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -26,16 +20,19 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _videoDone = false;
+  bool _popupVisible = false;
   Timer? _fallbackTimer;
+  Timer? _popupDelayTimer;
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _checkAuth();
+    _injectBridge();
     _fallbackTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted && !_videoDone) setState(() => _videoDone = true);
+      if (mounted && !_videoDone) _onVideoDone();
     });
-    _registerGlobalCallbacks();
   }
 
   Future<void> _checkAuth() async {
@@ -49,18 +46,56 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  void _registerGlobalCallbacks() {
-    _spliti5DownloadApk = ((JSAny? _) {
-      _downloadApk();
-    }).toJS;
-    _spliti5OpenWeb = ((JSAny? _) {
-      _openWebSignIn();
-    }).toJS;
+  /// Inject a hidden div + <script> that defines global JS functions.
+  /// When a button is clicked, JS sets the div's text to the action name.
+  /// Flutter polls the div every 100ms to detect actions.
+  void _injectBridge() {
+    // Hidden channel element
+    final channel = web.HTMLDivElement()
+      ..id = 'spliti5-action-channel'
+      ..style.cssText = 'display:none;';
+    web.document.body?.appendChild(channel);
+
+    // Script that defines the global functions
+    final script = web.HTMLScriptElement()
+      ..innerText = '''
+        window.spliti5DownloadApk = function() {
+          var ch = document.getElementById('spliti5-action-channel');
+          if (ch) ch.textContent = 'download';
+        };
+        window.spliti5OpenWeb = function() {
+          var ch = document.getElementById('spliti5-action-channel');
+          if (ch) ch.textContent = 'web';
+        };
+      ''';
+    web.document.head?.appendChild(script);
+
+    // Poll the channel element
+    _pollTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (!mounted) return;
+      final ch = web.document.getElementById('spliti5-action-channel');
+      if (ch == null) return;
+      final action = ch.textContent ?? '';
+      if (action.isEmpty) return;
+      ch.textContent = ''; // consume
+      if (action == 'download') _downloadApk();
+      if (action == 'web') _openWebSignIn();
+    });
+  }
+
+  void _onVideoDone() {
+    if (!mounted || _videoDone) return;
+    setState(() => _videoDone = true);
+    _popupDelayTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (mounted) setState(() => _popupVisible = true);
+    });
   }
 
   @override
   void dispose() {
     _fallbackTimer?.cancel();
+    _popupDelayTimer?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
   }
 
@@ -89,32 +124,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       backgroundColor: Colors.black,
       body: VideoBackground(
         duration: const Duration(seconds: 10),
-        onLoopComplete: () {
-          if (mounted) setState(() => _videoDone = true);
-        },
+        onLoopComplete: () => _onVideoDone(),
         child: Stack(
           children: [
-            Model3DOverlay(show: _videoDone),
             if (_videoDone)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
-                height: 260,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.5),
-                        Colors.black.withValues(alpha: 0.85),
-                      ],
+                height: 340,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 800),
+                  opacity: _popupVisible ? 1.0 : 0.0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.4),
+                          Colors.black.withValues(alpha: 0.82),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
+            Model3DOverlay(show: _popupVisible),
           ],
         ),
       ),
@@ -183,9 +220,9 @@ class _GoogleSignInPage extends ConsumerWidget {
                     const SizedBox(height: 12),
                     Text(
                       'Your Google account is used for:\n'
-                      '• Syncing expenses across devices\n'
-                      '• Storing trip photos in Google Drive\n'
-                      '• Same account on web & app',
+                      '\u2022 Syncing expenses across devices\n'
+                      '\u2022 Storing trip photos in Google Drive\n'
+                      '\u2022 Same account on web & app',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.5),
