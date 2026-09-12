@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
 /// Injects model-viewer 3D models into the DOM as an overlay.
-/// Glassmorphism popup with two models.
-/// Uses Dart onClick streams — no inline JS, no script injection.
+/// Left-aligned glassmorphism popup with transparent click overlays.
 class Model3DOverlay extends StatefulWidget {
   final bool show;
 
@@ -60,22 +59,23 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
       web.document.head?.appendChild(style);
     }
 
-    // Main container — slide up animation
+    // Main container — LEFT aligned, auto-adjust width
     final container = web.HTMLDivElement()
       ..id = 'spliti5-3d-overlay'
       ..style.cssText = '''
         position:fixed;
-        bottom:0;left:0;right:0;
+        bottom:0;
+        left:0;
         z-index:10;
         pointer-events:none;
         display:flex;
         flex-direction:column;
-        align-items:center;
+        align-items:flex-start;
         padding:0 16px 20px;
         animation: spliti5SlideUp 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards;
       ''';
 
-    // Glassmorphism box
+    // Glassmorphism box — auto-width, fits content
     final box = web.HTMLDivElement()
       ..style.cssText = '''
         pointer-events:auto;
@@ -89,12 +89,12 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         border:1px solid rgba(255,255,255,0.12);
         border-radius:24px;
         padding:20px 24px 20px;
-        max-width:520px;
-        width:100%;
+        width:auto;
+        max-width:540px;
         animation: spliti5Glow 4s ease-in-out infinite;
       ''';
 
-    // Download App card — Dart onClick stream writes to hidden div
+    // Download App card — transparent click overlay fixes shadow DOM click issue
     final downloadCard = _createModelCard(
       modelSrc:
           'https://modelviewer.dev/shared-assets/models/RobotExpressive.glb',
@@ -113,7 +113,7 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         margin:4px 0;
       ''';
 
-    // Continue on Web card — Dart onClick stream writes to hidden div
+    // Continue on Web card
     final webCard = _createModelCard(
       modelSrc:
           'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
@@ -128,7 +128,7 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
     box.appendChild(webCard);
     container.appendChild(box);
 
-    // Footer — floating line OUTSIDE the glass box
+    // Footer — floating line OUTSIDE glass box, left-aligned
     final footer = web.HTMLDivElement()
       ..innerText = 'Both versions share the same account & data'
       ..style.cssText = '''
@@ -136,9 +136,10 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         font-size:11px;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         letter-spacing:0.2px;
-        margin-top:10px;
-        text-align:center;
+        margin-top:12px;
+        text-align:left;
         pointer-events:none;
+        padding-left:24px;
       ''';
     container.appendChild(footer);
 
@@ -153,6 +154,7 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
     required String actionValue,
     required String accentColor,
   }) {
+    // Card wrapper — relative positioning for absolute overlay
     final card = web.HTMLDivElement()
       ..style.cssText = '''
         flex:1;
@@ -164,14 +166,10 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         padding:12px 8px;
         border-radius:16px;
         border:1px solid transparent;
+        position:relative;
       ''';
 
-    // Pure Dart onClick — writes action to hidden div for Flutter to poll
-    card.onClick.listen((_) {
-      final ch = web.document.getElementById('spliti5-action');
-      if (ch != null) ch.textContent = actionValue;
-    });
-
+    // Hover effects
     card.onMouseOver.listen((_) {
       card.style.background = 'rgba(255,255,255,0.07)';
       card.style.borderColor = 'rgba($accentColor,0.3)';
@@ -183,6 +181,22 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
       card.style.transform = 'translateY(0) scale(1)';
     });
 
+    // Transparent click overlay — solves model-viewer shadow DOM click hijacking
+    final overlay = web.HTMLDivElement()
+      ..style.cssText = '''
+        position:absolute;
+        top:0;left:0;right:0;bottom:0;
+        pointer-events:auto;
+        cursor:pointer;
+        border-radius:16px;
+        z-index:1;
+      ''';
+    overlay.onClick.listen((_) {
+      final ch = web.document.getElementById('spliti5-action');
+      if (ch != null) ch.textContent = actionValue;
+    });
+
+    // model-viewer with pointer-events:none on all elements
     final modelViewer =
         (web.document.createElement('model-viewer') as web.HTMLElement)
           ..setAttribute('src', modelSrc)
@@ -207,6 +221,7 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         font-weight:700;
         margin-top:6px;
         text-align:center;
+        pointer-events:none;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
         letter-spacing:-0.2px;
       ''';
@@ -219,9 +234,11 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
         margin-top:3px;
         text-align:center;
         line-height:1.4;
+        pointer-events:none;
         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
       ''';
 
+    card.appendChild(overlay);
     card.appendChild(modelViewer);
     card.appendChild(titleEl);
     card.appendChild(subtitleEl);
