@@ -1,15 +1,16 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web/web.dart' as web;
 
 import '../../core/platform/platform_detect.dart';
 import '../../core/platform/web_download.dart';
+import '../../services/auth_service.dart';
 import '../../providers/app_provider.dart';
 import '../widgets/sign_in_button.dart';
 import '../widgets/video_background.dart';
 import '../widgets/model_3d_overlay.dart';
-import 'home_screen.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -28,22 +29,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
-    _checkAuth();
     _createActionChannel();
     _fallbackTimer = Timer(const Duration(seconds: 5), () {
       if (mounted && !_videoDone) _onVideoDone();
     });
-  }
-
-  Future<void> _checkAuth() async {
-    final auth = ref.read(authServiceProvider);
-    await auth.checkSignIn();
-    if (auth.isSignedIn && mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-      return;
-    }
   }
 
   /// Create a hidden div as a communication bridge.
@@ -84,7 +73,133 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _openWebSignIn() {
-    web.window.location.href = web.window.location.href;
+    if (!mounted) return;
+    if (kIsWeb) {
+      _showWebSignInDialog();
+    } else {
+      _signInNative();
+    }
+  }
+
+  Future<void> _signInNative() async {
+    final auth = ref.read(authServiceProvider);
+    final result = await auth.signIn();
+    if (!result.success && result.error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign in failed: ${result.error}')),
+      );
+    }
+  }
+
+  void _showWebSignInDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          decoration: BoxDecoration(
+            color: const Color(0xFF16162a),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.6),
+                blurRadius: 30,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  ),
+                ),
+                child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 28),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Spliti5 Web',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sign in with Google to continue to your trips in your browser',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.65),
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                ),
+                child: Column(
+                  children: [
+                    _featureRow(Icons.sync_rounded, 'Real-time multi-device sync'),
+                    const SizedBox(height: 8),
+                    _featureRow(Icons.cloud_outlined, 'Trip backup & cloud restore'),
+                    const SizedBox(height: 8),
+                    _featureRow(Icons.devices_rounded, 'Same account on web and mobile app'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+              const SizedBox(
+                height: 48,
+                child: Center(child: SignInButton()),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(
+                  'Dismiss',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _featureRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF667eea), size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _downloadApk() async {
@@ -101,6 +216,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthService>(authServiceProvider, (prev, next) {
+      if (next.isSignedIn && mounted) {
+        Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+      }
+    });
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: VideoBackground(
@@ -132,13 +253,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ),
               ),
-             Model3DOverlay(show: _popupVisible),
+            Model3DOverlay(show: _popupVisible),
             if (_popupVisible)
               Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 20),
-                  child: SignInButton(),
+                  child: const SignInButton(),
                 ),
               ),
           ],
@@ -147,7 +268,3 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 }
-
-
-
-

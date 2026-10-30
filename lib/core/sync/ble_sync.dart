@@ -14,6 +14,7 @@ class BleSyncTransport {
   BleSyncTransport(this._syncService);
 
   final SyncService _syncService;
+  SyncService get syncService => _syncService;
 
   bool _scanning = false;
 

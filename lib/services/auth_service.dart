@@ -82,12 +82,15 @@ class AuthService extends ChangeNotifier {
         if (event is GoogleSignInAuthenticationEventSignIn) {
           _currentUser = event.user;
           _webSignInCompleted = true;
+          _setSignedInFlag(true);
+          _upsertDirectory(event.user);
           if (_authEventCompleter != null && !_authEventCompleter!.isCompleted) {
             _authEventCompleter!.complete();
           }
           notifyListeners();
         } else if (event is GoogleSignInAuthenticationEventSignOut) {
           _currentUser = null;
+          _setSignedInFlag(false);
           if (_authEventCompleter != null && !_authEventCompleter!.isCompleted) {
             _authEventCompleter!.complete();
           }

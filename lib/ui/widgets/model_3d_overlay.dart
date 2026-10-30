@@ -82,7 +82,7 @@ class _Model3DOverlayState extends State<Model3DOverlay> {
     ''';
 
     final div = web.HTMLDivElement();
-    div.innerHTML = html as JSAny;
+    div.innerHTML = html.toJS;
     final container = div.firstElementChild as web.HTMLDivElement;
     web.document.body?.appendChild(container);
     _container = container;
