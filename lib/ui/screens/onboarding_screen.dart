@@ -211,6 +211,123 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
     });
 
+    if (!kIsWeb) {
+      return _buildNativeOnboarding(context);
+    }
+
+    return _buildWebOnboarding(context);
+  }
+
+  Widget _buildNativeOnboarding(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF0F172A),
+              Color(0xFF1E1B4B),
+              Color(0xFF0F172A),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Spacer(flex: 2),
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.4),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.flight_takeoff_rounded,
+                    color: Colors.white,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Spliti5',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Smart group expense splitting for travel & life',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
+                const Spacer(flex: 2),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: Column(
+                    children: [
+                      _featureRow(Icons.wifi_off_rounded, '100% Offline-first local database'),
+                      const SizedBox(height: 14),
+                      _featureRow(Icons.calculate_rounded, 'Real-time who owes whom calculations'),
+                      const SizedBox(height: 14),
+                      _featureRow(Icons.currency_exchange_rounded, 'Multi-currency & UPI settlements'),
+                      const SizedBox(height: 14),
+                      _featureRow(Icons.sync_rounded, 'Instant cloud sync across all devices'),
+                    ],
+                  ),
+                ),
+                const Spacer(flex: 3),
+                const SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: Center(child: SignInButton()),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Sign in with Google to sync your trips across devices',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontSize: 12,
+                  ),
+                ),
+                const Spacer(flex: 1),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebOnboarding(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: VideoBackground(
