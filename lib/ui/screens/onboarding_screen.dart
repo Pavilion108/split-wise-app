@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:web/web.dart' as web;
 
 import '../../core/platform/platform_detect.dart';
+import '../../core/platform/web_action_bridge.dart';
 import '../../core/platform/web_download.dart';
 import '../../services/auth_service.dart';
 import '../../providers/app_provider.dart';
@@ -24,7 +24,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _popupVisible = false;
   Timer? _fallbackTimer;
   Timer? _popupDelayTimer;
-  Timer? _pollTimer;
+  WebActionBridge? _actionBridge;
 
   @override
   void initState() {
@@ -35,25 +35,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     });
   }
 
-  /// Create a hidden div as a communication bridge.
-  /// HTML onclick handlers write action names into this div.
-  /// Flutter polls it every 100ms to detect button presses.
   void _createActionChannel() {
-    final channel = web.HTMLDivElement()
-      ..id = 'spliti5-action'
-      ..style.cssText = 'display:none;';
-    web.document.body?.appendChild(channel);
-
-    _pollTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!mounted) return;
-      final ch = web.document.getElementById('spliti5-action');
-      if (ch == null) return;
-      final action = ch.textContent ?? '';
-      if (action.isEmpty) return;
-      ch.textContent = '';
-      if (action == 'download') _downloadApk();
-      if (action == 'web') _openWebSignIn();
-    });
+    _actionBridge = WebActionBridge.create()
+      ..init((action) {
+        if (!mounted) return;
+        if (action == 'download') _downloadApk();
+        if (action == 'web') _openWebSignIn();
+      });
   }
 
   void _onVideoDone() {
@@ -68,7 +56,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void dispose() {
     _fallbackTimer?.cancel();
     _popupDelayTimer?.cancel();
-    _pollTimer?.cancel();
+    _actionBridge?.dispose();
+    _actionBridge = null;
     super.dispose();
   }
 

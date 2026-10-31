@@ -12,14 +12,14 @@ class PlatformDetect {
   static bool get isDesktop =>
       !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
-  /// APK download URL — hosted on Firebase Hosting alongside the web app.
-  /// File renamed to avoid Firebase Hosting's Spark plan executable block.
+  /// APK download URL — direct download from GitHub Releases.
+  /// (Also redirected from https://splitwiser-26.web.app/split-wise-app)
   static const String apkDownloadUrl =
-      'https://splitwiser-26.web.app/split-wise-app';
+      'https://github.com/Pavilion108/split-wise-app/releases/latest/download/split-wise.apk';
 
-  /// GitHub Actions artifact page (fallback if APK not on hosting).
+  /// GitHub Releases page (fallback).
   static const String apkFallbackUrl =
-      'https://github.com/Pavilion108/split-wise-app/actions';
+      'https://github.com/Pavilion108/split-wise-app/releases';
 
   /// Deep link to open the app if already installed.
   /// Android: intent:// scheme  |  iOS: Universal Link

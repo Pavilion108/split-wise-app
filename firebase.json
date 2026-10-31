@@ -45,6 +45,18 @@
         ]
       }
     ],
+    "redirects": [
+      {
+        "source": "/split-wise-app",
+        "destination": "https://github.com/Pavilion108/split-wise-app/releases/latest/download/split-wise.apk",
+        "type": 302
+      },
+      {
+        "source": "/split-wise.apk",
+        "destination": "https://github.com/Pavilion108/split-wise-app/releases/latest/download/split-wise.apk",
+        "type": 302
+      }
+    ],
     "rewrites": [
       {
         "source": "**",
