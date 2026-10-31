@@ -48,12 +48,12 @@
     "redirects": [
       {
         "source": "/split-wise-app",
-        "destination": "https://github.com/Pavilion108/split-wise-app/releases/latest/download/split-wise.apk",
+        "destination": "https://drive.usercontent.google.com/download?id=1AvHSk92GTBZO-YbiuurPblzemOcX2-Lm&export=download&confirm=t",
         "type": 302
       },
       {
         "source": "/split-wise.apk",
-        "destination": "https://github.com/Pavilion108/split-wise-app/releases/latest/download/split-wise.apk",
+        "destination": "https://drive.usercontent.google.com/download?id=1AvHSk92GTBZO-YbiuurPblzemOcX2-Lm&export=download&confirm=t",
         "type": 302
       }
     ],
