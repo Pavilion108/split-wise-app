@@ -220,109 +220,316 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Widget _buildNativeOnboarding(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0F172A),
-              Color(0xFF1E1B4B),
-              Color(0xFF0F172A),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Spacer(flex: 2),
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6366F1).withValues(alpha: 0.4),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.flight_takeoff_rounded,
-                    color: Colors.white,
-                    size: 48,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Spliti5',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Smart group expense splitting for travel & life',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 15,
-                    height: 1.4,
-                  ),
-                ),
-                const Spacer(flex: 2),
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                  ),
-                  child: Column(
-                    children: [
-                      _featureRow(Icons.wifi_off_rounded, '100% Offline-first local database'),
-                      const SizedBox(height: 14),
-                      _featureRow(Icons.calculate_rounded, 'Real-time who owes whom calculations'),
-                      const SizedBox(height: 14),
-                      _featureRow(Icons.currency_exchange_rounded, 'Multi-currency & UPI settlements'),
-                      const SizedBox(height: 14),
-                      _featureRow(Icons.sync_rounded, 'Instant cloud sync across all devices'),
+      backgroundColor: const Color(0xFF070911),
+      body: Stack(
+        children: [
+          // Ambient Top Gold Glow
+          Positioned(
+            top: -50,
+            left: 0,
+            right: 0,
+            height: 280,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.topCenter,
+                    radius: 0.85,
+                    colors: [
+                      const Color(0xFFEAB308).withValues(alpha: 0.15),
+                      const Color(0xFF6366F1).withValues(alpha: 0.08),
+                      Colors.transparent,
                     ],
                   ),
                 ),
-                const Spacer(flex: 3),
-                const SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: Center(child: SignInButton()),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Sign in with Google to sync your trips across devices',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.45),
-                    fontSize: 12,
-                  ),
-                ),
-                const Spacer(flex: 1),
-              ],
+              ),
             ),
           ),
-        ),
+          // Ambient Bottom Cyan Glow
+          Positioned(
+            bottom: -60,
+            left: -40,
+            width: 280,
+            height: 280,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    radius: 0.8,
+                    colors: [
+                      const Color(0xFF0EA5E9).withValues(alpha: 0.14),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 10),
+                      // Floating Classic Gold Crest (No box, no border)
+                      Image.asset(
+                        'assets/spliti5_crest_gold.png',
+                        height: 95,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Spliti5',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'TRAVEL • SPLIT • EXPLORE',
+                        style: TextStyle(
+                          color: Color(0xFFEAB308),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2.2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Smart group expenses, zero awkwardness.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Live Glassmorphic Split Preview Card
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              blurRadius: 30,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: const [
+                                    Text(
+                                      'Next Trip to ',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: -0.2,
+                                      ),
+                                    ),
+                                    _DestinationDashSlot(),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    '4 Members',
+                                    style: TextStyle(
+                                      color: Color(0xFFA5B4FC),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        '✈️ Group Flights & Stay',
+                                        style: TextStyle(
+                                          color: Color(0xFFE2E8F0),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Paid by David • Equal Split',
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(alpha: 0.45),
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Text(
+                                    '₹18,400',
+                                    style: TextStyle(
+                                      color: Color(0xFF38BDF8),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF22C55E).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0xFF22C55E).withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Alex owes David',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const Text(
+                                    '₹4,600',
+                                    style: TextStyle(
+                                      color: Color(0xFF4ADE80),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Feature Chips
+                      Row(
+                        children: [
+                          Expanded(child: _featureChip('⚡', '100% Offline')),
+                          const SizedBox(width: 8),
+                          Expanded(child: _featureChip('🔄', 'Cloud Sync')),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(child: _featureChip('💸', 'UPI Deep-links')),
+                          const SizedBox(width: 8),
+                          Expanded(child: _featureChip('🛡️', 'No Ad Tracking')),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Google Sign-in Button
+                      const SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: Center(child: SignInButton()),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'By continuing, you agree to our Terms of Service',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _featureChip(String icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            alignment: Alignment.center,
+            child: Text(icon, style: const TextStyle(fontSize: 10)),
+          ),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFFCBD5E1),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -374,3 +581,89 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 }
+
+class _DestinationDashSlot extends StatefulWidget {
+  const _DestinationDashSlot();
+
+  @override
+  State<_DestinationDashSlot> createState() => _DestinationDashSlotState();
+}
+
+class _DestinationDashSlotState extends State<_DestinationDashSlot> {
+  static const List<String> _destinations = [
+    '🏔️ Himachal',
+    '🏰 Rajasthan',
+    '🌴 Goa',
+    '🛶 Kerala',
+    '❄️ Kashmir',
+  ];
+
+  int _currentIndex = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentIndex = (_currentIndex + 1) % _destinations.length;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 380),
+          transitionBuilder: (child, animation) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.0, 0.35),
+                end: Offset.zero,
+              ).animate(animation),
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          },
+          child: Text(
+            _destinations[_currentIndex],
+            key: ValueKey<int>(_currentIndex),
+            style: const TextStyle(
+              color: Color(0xFFFDE047),
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Container(
+          height: 2,
+          width: 90,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFACC15),
+            borderRadius: BorderRadius.circular(2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFACC15).withValues(alpha: 0.55),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
