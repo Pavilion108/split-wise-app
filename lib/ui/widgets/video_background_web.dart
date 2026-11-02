@@ -44,7 +44,7 @@ class _VideoBackgroundState extends State<VideoBackground> {
       ..playsInline = true
       ..setAttribute('playsinline', '')
       ..style.cssText =
-          'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:0;pointer-events:none;';
+          'position:fixed;top:0;left:0;width:100%;height:100%;max-width:100vw;max-height:100dvh;object-fit:cover;object-position:center center;z-index:0;pointer-events:none;';
 
     final webmSource = web.HTMLSourceElement()
       ..src = 'assets/assets/animations/airplane_bg.webm'

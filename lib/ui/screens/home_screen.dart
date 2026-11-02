@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/constants.dart';
 import '../../core/platform/platform_detect.dart';
 import '../../core/sync/invite_code.dart';
 import '../../models/models.dart';
@@ -131,10 +130,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final trips = ref.watch(tripRepositoryProvider).watchTrips();
-    final isDesktop = ResponsiveLayout.isDesktop(context);
     final auth = ref.watch(authServiceProvider);
     final myGoogleId = auth.currentUser?.id ?? '';
+    final myEmail = auth.currentUser?.email ?? '';
+    final trips = ref.watch(tripRepositoryProvider).watchTripsForUser(
+      googleId: myGoogleId,
+      email: myEmail,
+    );
+    final isDesktop = ResponsiveLayout.isDesktop(context);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -292,96 +295,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     ),
     ),
-    );
-  }
-
-  Future<void> _createTrip(BuildContext context, WidgetRef ref) async {
-    final nameCtrl = TextEditingController();
-    final memberCtrl = TextEditingController();
-    final whatsappCtrl = TextEditingController();
-    String currency = 'INR';
-
-    await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('New Trip'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameCtrl,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Trip name',
-                    hintText: 'Goa Trip Dec 2026',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: currency,
-                  decoration:
-                      const InputDecoration(labelText: 'Base currency'),
-                  items: [
-                    for (final c in kDefaultCurrencies)
-                      DropdownMenuItem(
-                        value: c['code'],
-                        child: Text('${c['code']}  ${c['name']}'),
-                      ),
-                  ],
-                  onChanged: (v) => setState(() => currency = v!),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: memberCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Your name',
-                    hintText: 'How members see you',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: whatsappCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'WhatsApp group link (optional)',
-                    hintText: 'https://chat.whatsapp.com/...',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (nameCtrl.text.trim().isEmpty ||
-                    memberCtrl.text.trim().isEmpty) {
-                  return;
-                }
-                final deviceId = ref.read(deviceIdentityProvider).id;
-                final repo = ref.read(tripRepositoryProvider);
-                final trip = await repo.createTrip(
-                  name: nameCtrl.text.trim(),
-                  baseCurrency: currency,
-                  memberName: memberCtrl.text.trim(),
-                  deviceId: deviceId,
-                  whatsappGroupLink: whatsappCtrl.text.trim(),
-                );
-                if (ctx.mounted) {
-                  Navigator.pop(ctx, true);
-                  // Show invite code dialog.
-                  _showInviteCode(context, ref, trip);
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

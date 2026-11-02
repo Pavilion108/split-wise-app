@@ -31,6 +31,44 @@ class TripRepository {
         .map((rows) => rows.map(Trip.fromRow).toList());
   }
 
+  /// Watch trips scoped strictly to the current authenticated user.
+  /// New users with 0 joined trips will see an empty state (no cross-account leakage).
+  Stream<List<Trip>> watchTripsForUser({
+    required String googleId,
+    required String email,
+  }) {
+    if (googleId.isEmpty && email.isEmpty) {
+      return Stream.value([]);
+    }
+    final cleanEmail = email.toLowerCase().trim();
+
+    return (_db.select(_db.trips)
+          ..where((t) => t.deleted.equals(false))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.status),
+            (t) => OrderingTerm.desc(t.createdAt),
+          ]))
+        .watch()
+        .asyncMap((trips) async {
+          if (trips.isEmpty) return [];
+          final visibleTrips = <Trip>[];
+          for (final trip in trips) {
+            final matchingMembers = await (_db.select(_db.members)
+                  ..where((m) =>
+                      m.tripId.equals(trip.id) &
+                      m.deleted.equals(false) &
+                      ((m.googleId.equals(googleId) & m.googleId.isNotValue('')) |
+                       (m.emailLower.equals(cleanEmail) & m.emailLower.isNotValue('')))))
+                .get();
+
+            if (matchingMembers.isNotEmpty) {
+              visibleTrips.add(Trip.fromRow(trip));
+            }
+          }
+          return visibleTrips;
+        });
+  }
+
   Future<Trip?> getTrip(String id) async {
     final row = await (_db.select(_db.trips)
           ..where((t) => t.id.equals(id)))
@@ -177,6 +215,8 @@ class TripRepository {
     required String baseCurrency,
     required String memberName,
     required String deviceId,
+    String googleId = '',
+    String emailLower = '',
     String whatsappGroupLink = '',
   }) async {
     final tripId = _uuid.v4();
@@ -199,6 +239,8 @@ class TripRepository {
             tripId: tripId,
             name: memberName,
             deviceId: deviceId,
+            googleId: Value(googleId),
+            emailLower: Value(emailLower),
             joinedAt: now,
           ));
 
@@ -224,6 +266,8 @@ class TripRepository {
           'tripId': tripId,
           'name': memberName,
           'deviceId': deviceId,
+          'googleId': googleId,
+          'emailLower': emailLower,
           'joinedAt': now.toIso8601String(),
         },
       );
@@ -244,6 +288,8 @@ class TripRepository {
         memberId: memberId,
         name: memberName,
         deviceId: deviceId,
+        googleId: googleId,
+        emailLower: emailLower,
         joinedAt: now,
       );
       await _cloudSync.pushTripOps(tripId);

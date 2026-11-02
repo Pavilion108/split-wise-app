@@ -1,4 +1,5 @@
 import 'package:firebase_database/firebase_database.dart';
+import 'version_service.dart';
 
 /// Admin service for Spliti5 portal.
 /// Provides full database-level controls and real-time activity monitoring.
@@ -7,6 +8,10 @@ class AdminService {
   static final instance = AdminService._();
 
   final _db = FirebaseDatabase.instance;
+
+  /// Live streams for real-time monitoring
+  Stream<DatabaseEvent> watchTripsLive() => _db.ref('trips').onValue;
+  Stream<DatabaseEvent> watchUsersLive() => _db.ref('users').onValue;
 
   /// Admin email — the only account with full forensic access.
   static const adminEmail = 'vighnesh.bagal99@gmail.com';
@@ -272,7 +277,7 @@ class AdminService {
     backup['_metadata'] = {
       'exportedAt': DateTime.now().toIso8601String(),
       'exportedBy': 'Admin Dashboard',
-      'version': '1.0.0',
+      'version': VersionService.currentVersion,
     };
 
     return backup;

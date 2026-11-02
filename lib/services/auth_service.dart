@@ -10,6 +10,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _webClientId =
     '612502468471-q85dr65euduai9nnlr6ejh4gk2us4588.apps.googleusercontent.com';
 
+/// Offline cached user identity so the app restores sessions instantly across restarts
+class CachedGoogleIdentity implements GoogleIdentity {
+  const CachedGoogleIdentity({
+    required this.id,
+    required this.email,
+    this.displayName,
+    this.photoUrl,
+  });
+
+  @override
+  final String id;
+  @override
+  final String email;
+  @override
+  final String? displayName;
+  @override
+  final String? photoUrl;
+}
+
 /// Authentication service using Google Sign-In v7.x API.
 /// Provides user identity and Drive access tokens.
 ///
@@ -23,10 +42,11 @@ class AuthService extends ChangeNotifier {
 
   final GoogleSignIn _googleSignIn;
 
-  GoogleSignInAccount? _currentUser;
-  GoogleSignInAccount? get currentUser => _currentUser;
+  GoogleIdentity? get currentUser => _currentUser ?? _cachedUser;
+  GoogleIdentity? _currentUser;
+  CachedGoogleIdentity? _cachedUser;
 
-  bool get isSignedIn => _currentUser != null;
+  bool get isSignedIn => currentUser != null;
 
   /// Whether auto-login was successful (no user interaction needed).
   bool get wasAutoLogin => _wasAutoLogin;
@@ -43,6 +63,32 @@ class AuthService extends ChangeNotifier {
   Completer<void>? _authEventCompleter;
 
   static const _kSignedInFlag = 'splitwise_signed_in';
+  static const _kUserId = 'splitwise_user_id';
+  static const _kUserEmail = 'splitwise_user_email';
+  static const _kUserName = 'splitwise_user_name';
+  static const _kUserPhoto = 'splitwise_user_photo';
+
+  Future<void> _saveUserLocally(GoogleIdentity user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kUserId, user.id);
+      await prefs.setString(_kUserEmail, user.email);
+      await prefs.setString(_kUserName, user.displayName ?? '');
+      await prefs.setString(_kUserPhoto, user.photoUrl ?? '');
+      await prefs.setBool(_kSignedInFlag, true);
+    } catch (_) {}
+  }
+
+  Future<void> _clearUserLocally() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kUserId);
+      await prefs.remove(_kUserEmail);
+      await prefs.remove(_kUserName);
+      await prefs.remove(_kUserPhoto);
+      await prefs.setBool(_kSignedInFlag, false);
+    } catch (_) {}
+  }
 
   Future<void> _setSignedInFlag(bool value) async {
     try {
@@ -81,8 +127,8 @@ class AuthService extends ChangeNotifier {
       _googleSignIn.authenticationEvents.listen((event) {
         if (event is GoogleSignInAuthenticationEventSignIn) {
           _currentUser = event.user;
+          _saveUserLocally(event.user);
           _webSignInCompleted = true;
-          _setSignedInFlag(true);
           _upsertDirectory(event.user);
           if (_authEventCompleter != null && !_authEventCompleter!.isCompleted) {
             _authEventCompleter!.complete();
@@ -90,7 +136,8 @@ class AuthService extends ChangeNotifier {
           notifyListeners();
         } else if (event is GoogleSignInAuthenticationEventSignOut) {
           _currentUser = null;
-          _setSignedInFlag(false);
+          _cachedUser = null;
+          _clearUserLocally();
           if (_authEventCompleter != null && !_authEventCompleter!.isCompleted) {
             _authEventCompleter!.complete();
           }
@@ -99,13 +146,29 @@ class AuthService extends ChangeNotifier {
       });
     }
 
+    // Restore cached user profile immediately so user never gets logged out on restart
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_kSignedInFlag) == true) {
+      final savedId = prefs.getString(_kUserId) ?? '';
+      final savedEmail = prefs.getString(_kUserEmail) ?? '';
+      if (savedId.isNotEmpty || savedEmail.isNotEmpty) {
+        _cachedUser = CachedGoogleIdentity(
+          id: savedId,
+          email: savedEmail,
+          displayName: prefs.getString(_kUserName),
+          photoUrl: prefs.getString(_kUserPhoto),
+        );
+        _wasAutoLogin = true;
+        notifyListeners();
+      }
+    }
+
     // On web, attemptLightweightAuthentication() always returns null (by design).
     // The actual restore happens via the authenticationEvents stream when
     // Google One Tap completes in the background. We wait for that event
     // so the UI doesn't flash the onboarding screen.
     if (kIsWeb) {
       // Check if user was previously signed in — if so, give One Tap more time.
-      final prefs = await SharedPreferences.getInstance();
       final wasSignedIn = prefs.getBool(_kSignedInFlag) == true;
       final timeout = wasSignedIn
           ? const Duration(seconds: 6)
@@ -122,27 +185,22 @@ class AuthService extends ChangeNotifier {
       return;
     }
 
-    // On native, attemptLightweightAuthentication() returns the account or null.
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_kSignedInFlag) != true) return;
-
+    // On native, attempt lightweight silent auth in the background to refresh tokens.
+    // Never clear the user session if silent check returns null or times out.
     try {
       final future = _googleSignIn.attemptLightweightAuthentication();
       final account = future == null
           ? null
-          : await future.timeout(const Duration(seconds: 8));
+          : await future.timeout(const Duration(seconds: 4));
       if (account != null) {
         _currentUser = account;
+        await _saveUserLocally(account);
         _webSignInCompleted = true;
         _wasAutoLogin = true;
         notifyListeners();
-      } else {
-        // Session expired or revoked — clear the flag.
-        await _setSignedInFlag(false);
       }
     } catch (e) {
-      debugPrint('Silent auth restore failed: $e');
-      await _setSignedInFlag(false);
+      debugPrint('Silent auth non-fatal notice: $e');
     }
   }
 
@@ -162,6 +220,7 @@ class AuthService extends ChangeNotifier {
       final account = await _googleSignIn.authenticate();
 
       _currentUser = account;
+      await _saveUserLocally(account);
       notifyListeners();
       await _setSignedInFlag(true);
 
@@ -200,13 +259,17 @@ class AuthService extends ChangeNotifier {
     if (_currentUser == null) {
       return AuthResult.error('No user after web sign-in');
     }
+    await _saveUserLocally(_currentUser!);
     await _setSignedInFlag(true);
 
     String? driveToken;
     try {
-      final authorization = await _currentUser!.authorizationClient
-          .authorizeScopes(['https://www.googleapis.com/auth/drive.file']);
-      driveToken = authorization.accessToken;
+      final account = _currentUser is GoogleSignInAccount ? (_currentUser as GoogleSignInAccount) : null;
+      if (account != null) {
+        final authorization = await account.authorizationClient
+            .authorizeScopes(['https://www.googleapis.com/auth/drive.file']);
+        driveToken = authorization.accessToken;
+      }
     } catch (_) {
       driveToken = null;
     }
@@ -225,7 +288,7 @@ class AuthService extends ChangeNotifier {
     );
   }
 
-  Future<void> _upsertDirectory(GoogleSignInAccount account) async {
+  Future<void> _upsertDirectory(GoogleIdentity account) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final searchable = prefs.getBool('user_searchable') ?? true;
@@ -261,17 +324,20 @@ class AuthService extends ChangeNotifier {
 
   /// Sign out.
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     _currentUser = null;
+    _cachedUser = null;
     _wasAutoLogin = false;
     _webSignInCompleted = false;
-    await _setSignedInFlag(false);
+    await _clearUserLocally();
     notifyListeners();
   }
 
   /// Get fresh access token for Drive API calls.
   Future<String?> getAccessToken() async {
-    final account = _currentUser;
+    final account = _currentUser is GoogleSignInAccount ? (_currentUser as GoogleSignInAccount) : null;
     if (account == null) return null;
 
     try {

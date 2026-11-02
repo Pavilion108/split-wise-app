@@ -12,13 +12,13 @@ class PlatformDetect {
   static bool get isDesktop =>
       !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
-  /// APK download URL — hosted on Google Drive CDN via Firebase redirect.
+  /// APK download URL — hosted via Firebase redirect to GitHub release CDN.
   static const String apkDownloadUrl =
       'https://splitwiser-26.web.app/split-wise-app';
 
-  /// Direct Google Drive download link (fallback).
+  /// Direct high-speed CDN download link (fallback).
   static const String apkFallbackUrl =
-      'https://drive.google.com/file/d/1AvHSk92GTBZO-YbiuurPblzemOcX2-Lm/view?usp=sharing';
+      'https://github.com/Pavilion108/split-wise-app/releases/latest/download/app-release.apk';
 
   /// Deep link to open the app if already installed.
   /// Android: intent:// scheme  |  iOS: Universal Link

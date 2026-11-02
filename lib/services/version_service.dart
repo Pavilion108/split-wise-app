@@ -4,13 +4,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 class VersionService {
   static const _lastSeenVersionKey = 'last_seen_app_version';
 
+  /// Single canonical app version
+  static const String currentVersion = '1.0.18';
+  static const String currentBuild = '19';
+
   /// Get current app version from pubspec.yaml
   static Future<String> getCurrentVersion() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      return info.version;
+      return info.version.isNotEmpty ? info.version : currentVersion;
     } catch (_) {
-      return '1.0.0';
+      return currentVersion;
     }
   }
 
@@ -18,9 +22,9 @@ class VersionService {
   static Future<String> getBuildNumber() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      return info.buildNumber;
+      return info.buildNumber.isNotEmpty ? info.buildNumber : currentBuild;
     } catch (_) {
-      return '1';
+      return currentBuild;
     }
   }
 
@@ -47,7 +51,7 @@ class VersionService {
 
   /// Get What's New content for current version
   static String getWhatsNew() {
-    return 'What\'s New in v1.0.0\n\n'
+    return 'What\'s New in v$currentVersion\n\n'
         '• Smart expense splitting with equal/custom splits\n'
         '• WhatsApp group integration\n'
         '• Dark mode support\n'

@@ -26,15 +26,51 @@ class _AdminScreenState extends State<AdminScreen> {
   List<Map<String, dynamic>> _selectedTripOps = [];
   List<Map<String, dynamic>> _selectedTripMembers = [];
   StreamSubscription? _opsSub;
+  StreamSubscription? _tripsSub;
+  StreamSubscription? _usersSub;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _setupLiveSync();
+  }
+
+  void _setupLiveSync() {
+    _tripsSub = AdminService.instance.watchTripsLive().listen((_) {
+      if (mounted) _loadDataQuiet();
+    });
+    _usersSub = AdminService.instance.watchUsersLive().listen((_) {
+      if (mounted) _loadDataQuiet();
+    });
+  }
+
+  Future<void> _loadDataQuiet() async {
+    try {
+      final admin = AdminService.instance;
+      final results = await Future.wait([
+        admin.getDatabaseStats(),
+        admin.getAllTrips(),
+        admin.getAllUsers(),
+        admin.getAllInviteCodes(),
+        admin.getAllInvites(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _stats = results[0] as Map<String, int>;
+          _trips = results[1] as List<Map<String, dynamic>>;
+          _users = results[2] as List<Map<String, dynamic>>;
+          _inviteCodes = results[3] as Map<String, dynamic>;
+          _invites = results[4] as Map<String, dynamic>;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    _tripsSub?.cancel();
+    _usersSub?.cancel();
     _opsSub?.cancel();
     super.dispose();
   }
@@ -79,8 +115,8 @@ class _AdminScreenState extends State<AdminScreen> {
       ]);
       if (mounted) {
         setState(() {
-          _selectedTripOps = results[0] as List<Map<String, dynamic>>;
-          _selectedTripMembers = results[1] as List<Map<String, dynamic>>;
+          _selectedTripOps = results[0];
+          _selectedTripMembers = results[1];
         });
       }
     } catch (_) {}

@@ -10,7 +10,6 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/constants.dart';
 import '../../core/sync/invite_code.dart';
-import '../../core/sync/sync_service.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/app_provider.dart';

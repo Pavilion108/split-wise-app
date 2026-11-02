@@ -12,7 +12,6 @@ import '../../services/admin_service.dart';
 import '../../services/photo_upload_service.dart';
 import 'admin_screen.dart';
 import '../../services/avatar_service.dart';
-import '../../services/upi_launcher.dart';
 import '../../services/version_service.dart';
 import '../widgets/avatar_picker.dart';
 import '../widgets/sponsor_card.dart';
@@ -370,7 +369,7 @@ class ProfileScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.info_outline_rounded,
             title: 'Version',
-            subtitle: '1.0.0',
+            subtitle: 'v${VersionService.currentVersion} (${VersionService.currentBuild})',
             trailing: const SizedBox(),
             onTap: () async {
               final version = await VersionService.getCurrentVersion();
@@ -607,21 +606,6 @@ class ProfileScreen extends ConsumerWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Data exported successfully')),
-      );
-    }
-  }
-
-  Future<void> _openUpiPayment(BuildContext context) async {
-    final ok = await launchUpi(
-      vpa: 'vighnesh.bagal99-1@okicici',
-      payeeName: 'Vighnesh Bagal',
-      amount: 0,
-      note: 'Support Spliti5',
-    );
-    if (!ok && context.mounted) {
-      Clipboard.setData(const ClipboardData(text: 'vighnesh.bagal99-1@okicici'));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('UPI ID copied! Open any UPI app to pay.')),
       );
     }
   }

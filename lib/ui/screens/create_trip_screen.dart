@@ -3,9 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants.dart';
-import '../../models/models.dart';
 import '../../providers/app_provider.dart';
-import '../../repositories/trip_repository.dart';
 import '../widgets/daily_travel_background.dart';
 
 /// Immersive full-screen trip creation page with travel-themed background.
@@ -18,7 +16,6 @@ class CreateTripScreen extends ConsumerStatefulWidget {
 
 class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
   final _nameCtrl = TextEditingController();
-  final _memberCtrl = TextEditingController();
   final _whatsappCtrl = TextEditingController();
   String _currency = 'INR';
   bool _creating = false;
@@ -26,22 +23,31 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _memberCtrl.dispose();
     _whatsappCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _createTrip() async {
-    if (_nameCtrl.text.trim().isEmpty || _memberCtrl.text.trim().isEmpty) return;
+    final tripName = _nameCtrl.text.trim();
+    if (tripName.isEmpty) return;
     setState(() => _creating = true);
     try {
       final deviceId = ref.read(deviceIdentityProvider).id;
+      final auth = ref.read(authServiceProvider);
       final repo = ref.read(tripRepositoryProvider);
+      final memberName = (auth.currentUser?.displayName?.trim().isNotEmpty == true)
+          ? auth.currentUser!.displayName!.trim()
+          : 'Me';
+      final googleId = auth.currentUser?.id ?? '';
+      final emailLower = (auth.currentUser?.email ?? '').toLowerCase().trim();
+
       final trip = await repo.createTrip(
-        name: _nameCtrl.text.trim(),
+        name: tripName,
         baseCurrency: _currency,
-        memberName: _memberCtrl.text.trim(),
+        memberName: memberName,
         deviceId: deviceId,
+        googleId: googleId,
+        emailLower: emailLower,
         whatsappGroupLink: _whatsappCtrl.text.trim(),
       );
       if (mounted) Navigator.pop(context, trip);
@@ -114,15 +120,6 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                     const SizedBox(height: 20),
                     // Currency selector
                     _buildCurrencySelector(cs, isDark),
-                    const SizedBox(height: 20),
-                    // Your name
-                    _buildField(
-                      controller: _memberCtrl,
-                      label: 'Your name',
-                      hint: 'How members see you',
-                      icon: Icons.person_outline_rounded,
-                      delay: 400,
-                    ),
                     const SizedBox(height: 20),
                     // WhatsApp link
                     _buildField(

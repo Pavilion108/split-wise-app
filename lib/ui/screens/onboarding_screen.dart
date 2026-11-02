@@ -61,10 +61,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
+  bool _isWebSignInOpen = false;
+
   void _openWebSignIn() {
     if (!mounted) return;
     if (kIsWeb) {
-      _showWebSignInDialog();
+      if (!_isWebSignInOpen) {
+        _showWebSignInDialog();
+      }
     } else {
       _signInNative();
     }
@@ -81,6 +85,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _showWebSignInDialog() {
+    if (_isWebSignInOpen) return;
+    _isWebSignInOpen = true;
     showDialog(
       context: context,
       barrierDismissible: true,

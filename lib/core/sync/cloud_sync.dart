@@ -242,8 +242,11 @@ class CloudSyncService {
   /// Restores all trips this user/device is a member of.
   Future<int> restoreTrips() async {
     final refs = <String>[];
-    if (_userId != null) refs.add('users/$_userId/trips');
-    refs.add('devices/$_deviceId/trips');
+    if (_userId != null && _userId.isNotEmpty) {
+      refs.add('users/$_userId/trips');
+    } else {
+      refs.add('devices/$_deviceId/trips');
+    }
 
     final tripIds = <String>{};
     for (final r in refs) {
@@ -255,14 +258,15 @@ class CloudSyncService {
     }
 
     // Also check email_trips path for users added by email.
+    String cleanUserEmail = '';
     if (_userId != null) {
       // Try to find email from the user's profile in the directory.
       final profileSnap = await _db.ref('users/$_userId/profile').get();
       if (profileSnap.exists && profileSnap.value != null) {
         final profile = Map<String, dynamic>.from(profileSnap.value as Map);
-        final email = (profile['email'] ?? '') as String;
-        if (email.isNotEmpty) {
-          final emailKey = email.toLowerCase().replaceAll('.', '_dot_').replaceAll('@', '_at_');
+        cleanUserEmail = ((profile['email'] ?? '') as String).toLowerCase().trim();
+        if (cleanUserEmail.isNotEmpty) {
+          final emailKey = cleanUserEmail.replaceAll('.', '_dot_').replaceAll('@', '_at_');
           final emailSnap = await _db.ref('email_trips/$emailKey').get();
           if (emailSnap.exists && emailSnap.value != null) {
             final map = Map<String, dynamic>.from(emailSnap.value as Map);
@@ -287,11 +291,14 @@ class CloudSyncService {
         for (final mEntry in members.entries) {
           final m = Map<String, dynamic>.from(mEntry.value as Map);
           final mDevice = m['deviceId'] as String? ?? '';
-          final mEmail = m['emailLower'] as String? ?? '';
+          final mEmail = (m['emailLower'] as String? ?? '').toLowerCase().trim();
           final mGoogleId = m['googleId'] as String? ?? '';
-          if (mDevice == _deviceId ||
-              (_userId != null && mGoogleId == _userId) ||
-              (_userId != null && mEmail == _userId)) {
+          if (_userId != null && _userId.isNotEmpty) {
+            if (mGoogleId == _userId || (cleanUserEmail.isNotEmpty && mEmail == cleanUserEmail)) {
+              tripIds.add(tripId);
+              break;
+            }
+          } else if (mDevice == _deviceId) {
             tripIds.add(tripId);
             break;
           }
