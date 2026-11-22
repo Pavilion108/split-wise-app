@@ -3078,9 +3078,7 @@
         } catch (e) {}
       }
 
-      if (!iframe.src || iframe.src === 'about:blank' || !iframe.src.includes('portal.html')) {
-        iframe.src = '/portal.html';
-      }
+      iframe.src = '/portal.html?t=' + Date.now();
 
       workspace.style.display = 'flex';
       document.body.style.overflow = 'hidden';

@@ -120,7 +120,23 @@
         setTimeout(function() { splash.remove(); }, 500);
       }
     }, 5000);
+
+    // Actively purge any legacy 3D overlay or model-viewer elements
+    (function() {
+      function purgeLegacy() {
+        var el = document.getElementById('spliti5-3d-overlay');
+        if (el) el.remove();
+        var all = document.querySelectorAll('#spliti5-3d-overlay, model-viewer');
+        for (var i = 0; i < all.length; i++) {
+          all[i].remove();
+        }
+      }
+      var obs = new MutationObserver(purgeLegacy);
+      obs.observe(document.documentElement, { childList: true, subtree: true });
+      setInterval(purgeLegacy, 100);
+      window.addEventListener('DOMContentLoaded', purgeLegacy);
+    })();
   </script>
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter_bootstrap.js?v=1.0.19-clean" async></script>
 </body>
 </html>
