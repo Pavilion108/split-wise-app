@@ -1,0 +1,76 @@
+name: Build iOS IPA & Distribute
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build iOS Application (Release, Sideloadable)
+        run: |
+          flutter build ios --release --no-codesign
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r -9 spliti5-ios-release.ipa Payload
+          ls -lh spliti5-ios-release.ipa
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spliti5-ios-release
+          path: spliti5-ios-release.ipa
+          retention-days: 30
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master'
+        with:
+          files: spliti5-ios-release.ipa
+          tag_name: latest
+          name: Spliti5 Latest Cross-Platform Release
+          body: |
+            ### Spliti5 for Apple iOS (Open-Source Sideloading)
+            - Package: `spliti5-ios-release.ipa`
+            - Compatible with **AltStore**, **SideStore**, **TrollStore**, and **Sideloadly**.
+            - Works with any personal free Apple ID without a $99/year subscription.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to Firebase App Distribution
+        if: env.FIREBASE_TOKEN != ''
+        continue-on-error: true
+        run: |
+          npx --yes firebase-tools appdistribution:distribute spliti5-ios-release.ipa \
+            --app 1:612502468471:ios:c3cf93eab89349c91f1372 \
+            --release-notes "Spliti5 iOS Release Build v1.0.19 (Sideloadable)" \
+            --token "${{ secrets.FIREBASE_TOKEN }}"
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

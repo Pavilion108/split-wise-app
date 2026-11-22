@@ -670,6 +670,21 @@
       border-color: #FF9900;
       transform: translateY(-2px);
     }
+    .btn-apple {
+      background: rgba(255, 255, 255, 0.08);
+      color: #FFFFFF !important;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      backdrop-filter: blur(10px);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-apple:hover {
+      background: rgba(255, 255, 255, 0.18);
+      border-color: #FFFFFF;
+      transform: translateY(-2px);
+    }
     .btn-google {
       background: rgba(255, 255, 255, 0.08);
       color: #FFFFFF !important;
@@ -1843,15 +1858,22 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
             </svg>
-            Direct Android APK (v1.0.18 • 91.6 MB)
+            Direct Android APK (v1.0.19 • 90 MB)
           </a>
 
           <a href="https://developer.amazon.com/apps-and-games" target="_blank" class="btn btn-amazon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M15.93 17.09c-.27-.2-.2-.55.14-.72 1.48-.74 2.45-1.99 2.45-3.41 0-2.31-2.58-4.18-5.76-4.18-3.18 0-5.76 1.87-5.76 4.18 0 1.42.97 2.67 2.45 3.41.34.17.41.52.14.72-.51.38-1.55.93-2.1.93-.32 0-.64-.17-.85-.45-1.77-2.37-1.12-5.77 1.46-7.58 2.58-1.81 6.82-1.81 9.4 0 2.58 1.81 3.23 5.21 1.46 7.58-.21.28-.53.45-.85.45-.55 0-1.59-.55-2.1-.93z"/>
             </svg>
-            Amazon Appstore (Approval Pending)
+            Amazon Appstore (v1.0.19)
           </a>
+
+          <button type="button" class="btn btn-apple" onclick="openAppleDownloadModal()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.08 1.75-.95 2.79 1.01.08 2.05-.53 2.68-1.3z"/>
+            </svg>
+            Apple iOS (AltStore / Beta)
+          </button>
 
           <div id="heroAuthArea" style="display:inline-flex;">
             <button type="button" id="heroGoogleBtn" class="btn btn-google" onclick="openGoogleSignInModal()">
@@ -2247,6 +2269,72 @@
     </div>
   </div>
 
+  <!-- Apple iOS Distribution Modal -->
+  <div class="auth-modal-backdrop" id="appleModal" onclick="closeAppleDownloadModal(event)">
+    <div class="auth-modal-card" style="max-width: 540px;" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeAppleDownloadModal()">✕</button>
+      
+      <div class="auth-emblem-badge" style="background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.2);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="#FFFFFF">
+          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.08 1.75-.95 2.79 1.01.08 2.05-.53 2.68-1.3z"/>
+        </svg>
+      </div>
+      <h3 class="auth-modal-title">Spliti5 for Apple iOS</h3>
+      <p class="auth-modal-subtitle">Open, free distribution for iPhone, iPad, and Mac users.</p>
+
+      <!-- Option 1: Instant Safari PWA (Recommended) -->
+      <div style="background: linear-gradient(135deg, rgba(230,198,135,0.12) 0%, rgba(212,175,55,0.04) 100%); border: 1px solid rgba(230,198,135,0.35); border-radius: 14px; padding: 16px; margin-bottom: 14px; text-align: left;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 6px;">
+          <div style="font-size: 15px; font-weight: 700; color: #FFF; display:flex; align-items:center; gap:8px;">
+            <span>🌐</span> 1. Instant Safari Web App (Recommended)
+          </div>
+          <span style="font-size:10px; font-weight:700; background:#10B981; color:#000; padding:2px 8px; border-radius:10px; text-transform:uppercase;">No Install Needed</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5;">
+          Open in Safari on your iPhone, tap the <strong>Share</strong> button (box with <span style="color:#FFF;">↑</span>), then tap <strong>"Add to Home Screen"</strong>. Operates 100% full screen with offline cache and real-time cloud sync.
+        </p>
+        <button type="button" class="btn btn-gold" style="width:100%; padding:10px; font-size:13px; justify-content:center;" onclick="closeAppleDownloadModal(); openGoogleSignInModal();">
+          Launch Instant Web App Now ➔
+        </button>
+      </div>
+
+      <!-- Option 2: Open-Source Sideloading (AltStore / SideStore) -->
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.16); border-radius: 14px; padding: 16px; margin-bottom: 14px; text-align: left;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 6px;">
+          <div style="font-size: 15px; font-weight: 700; color: #FFF; display:flex; align-items:center; gap:8px;">
+            <span>📦</span> 2. Open-Source Sideloading (.IPA)
+          </div>
+          <span style="font-size:10px; font-weight:700; background:rgba(255,255,255,0.15); color:#FFF; padding:2px 8px; border-radius:10px; text-transform:uppercase;">AltStore / Free ID</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5;">
+          Download the raw iOS binary package. Sideload on any iPhone using open-source tools like <strong>AltStore</strong>, <strong>SideStore</strong>, or <strong>Sideloadly</strong> with any free personal Apple ID.
+        </p>
+        <a href="https://github.com/Pavilion108/split-wise-app/releases/latest/download/spliti5-ios-release.ipa" class="btn btn-apple" style="width:100%; padding:10px; font-size:13px; justify-content:center; box-sizing:border-box;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Download spliti5-ios-release.ipa
+        </a>
+      </div>
+
+      <!-- Option 3: Firebase App Distribution -->
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.16); border-radius: 14px; padding: 16px; margin-bottom: 14px; text-align: left;">
+        <div style="font-size: 15px; font-weight: 700; color: #FFF; display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <span>🔥</span> 3. Firebase App Distribution (Beta Testers)
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5;">
+          Want to receive official over-the-air test updates directly on your Apple device? Join our Firebase testing channel:
+        </p>
+        <div style="display:flex; gap:8px;">
+          <input type="email" id="appleTesterEmail" placeholder="your.apple.id@icloud.com" style="flex:1; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.25); border-radius:8px; color:#FFF; padding:8px 12px; font-size:12px; outline:none;">
+          <button type="button" onclick="submitAppleTesterRequest()" style="background:rgba(255,255,255,0.15); color:#FFF; border:1px solid rgba(255,255,255,0.3); border-radius:8px; font-weight:700; font-size:12px; padding:8px 14px; cursor:pointer; white-space:nowrap;">Join Beta ➔</button>
+        </div>
+        <div id="appleTesterSuccess" style="display:none; color:#10B981; font-size:11px; margin-top:6px; font-weight:600;">✓ Email registered! You will receive the Firebase installation invite.</div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Live Fully-Focused Application Experience Workspace -->
   <div id="appPortalWorkspace" class="app-portal-workspace" style="display:none;">
     <!-- Portal Swiss Top Bar -->
@@ -2611,11 +2699,36 @@
       document.body.style.overflow = '';
     }
 
+    // Apple iOS Modal Controls
+    function openAppleDownloadModal() {
+      document.getElementById('appleModal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeAppleDownloadModal(e) {
+      if (e && e.target && e.target.closest && e.target.closest('.auth-modal-card') && !e.target.classList.contains('modal-close-btn')) {
+        return;
+      }
+      document.getElementById('appleModal').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function submitAppleTesterRequest() {
+      const email = (document.getElementById('appleTesterEmail').value || '').trim();
+      if (!email || !email.includes('@')) {
+        alert('Please enter a valid Apple ID / email address.');
+        return;
+      }
+      document.getElementById('appleTesterSuccess').style.display = 'block';
+      document.getElementById('appleTesterEmail').value = '';
+    }
+
     // Keyboard Shortcuts (Esc to close modals, Arrows to navigate)
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         closeLightbox();
         closeGoogleSignInModal();
+        closeAppleDownloadModal();
         closeUserDropdown();
         closeLiveApplicationPortal();
       } else if (e.key === 'ArrowRight') {
