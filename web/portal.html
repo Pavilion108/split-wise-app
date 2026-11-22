@@ -15,7 +15,19 @@
   <title>Spliti5 — Live Web Application</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    #spliti5-3d-overlay { display: none !important; opacity: 0 !important; pointer-events: none !important; }
+    #spliti5-3d-overlay,
+    #spliti5-popup-anim,
+    model-viewer {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      position: absolute !important;
+      top: -9999px !important;
+      left: -9999px !important;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       background-color: #07090E;
@@ -137,6 +149,6 @@
       window.addEventListener('DOMContentLoaded', purgeLegacy);
     })();
   </script>
-  <script src="flutter_bootstrap.js?v=1.0.19-clean" async></script>
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

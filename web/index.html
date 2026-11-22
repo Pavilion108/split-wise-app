@@ -1607,10 +1607,18 @@
     .footer-links a:hover { color: var(--gold); }
 
     /* Live Application Portal Workspace */
-    #spliti5-3d-overlay {
+    #spliti5-3d-overlay,
+    #spliti5-popup-anim,
+    model-viewer {
       display: none !important;
+      visibility: hidden !important;
       opacity: 0 !important;
       pointer-events: none !important;
+      width: 0 !important;
+      height: 0 !important;
+      position: absolute !important;
+      top: -9999px !important;
+      left: -9999px !important;
     }
     .app-portal-workspace {
       position: fixed;
