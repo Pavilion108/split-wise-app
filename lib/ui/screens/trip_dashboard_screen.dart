@@ -27,10 +27,12 @@ class TripDashboardScreen extends ConsumerStatefulWidget {
     super.key,
     required this.tripId,
     required this.tripName,
+    this.initialTab = 0,
   });
 
   final String tripId;
   final String tripName;
+  final int initialTab;
 
   @override
   ConsumerState<TripDashboardScreen> createState() =>
@@ -38,7 +40,7 @@ class TripDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
-  int _tab = 0;
+  late int _tab = widget.initialTab;
 
   @override
   void initState() {
@@ -90,6 +92,7 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: const TextStyle(
+          fontFamily: 'Liberation Sans',
           color: Colors.white,
           fontSize: 22,
           fontWeight: FontWeight.w700,
@@ -248,7 +251,7 @@ class _TripDashboardScreenState extends ConsumerState<TripDashboardScreen> {
           );
         },
         icon: const Icon(Icons.add),
-        label: const Text('Add Expense'),
+        label: const Text('Add Expense', style: TextStyle(fontFamily: 'Liberation Sans')),
       ),
     ),
     ),
@@ -743,6 +746,7 @@ class _OverviewTab extends ConsumerWidget {
                 Text(
                   'Total Trip Expense',
                   style: TextStyle(
+                    fontFamily: 'Liberation Sans',
                     color: isDark
                         ? Colors.black.withValues(alpha: 0.6)
                         : Colors.white.withValues(alpha: 0.8),
@@ -755,6 +759,7 @@ class _OverviewTab extends ConsumerWidget {
                 Text(
                   formatMoney(balance?.totalExpense ?? 0, trip.baseCurrency),
                   style: TextStyle(
+                    fontFamily: 'Liberation Sans',
                     color: isDark ? Colors.black : Colors.white,
                     fontWeight: FontWeight.w800,
                     fontSize: 32,
@@ -811,6 +816,7 @@ class _OverviewTab extends ConsumerWidget {
                             Text(
                               isPositive ? 'You Should Receive' : 'You Should Pay',
                               style: TextStyle(
+                                fontFamily: 'Liberation Sans',
                                 color: isDark
                                     ? Colors.black.withValues(alpha: 0.6)
                                     : Colors.white.withValues(alpha: 0.85),
@@ -820,6 +826,7 @@ class _OverviewTab extends ConsumerWidget {
                             Text(
                               '${isPositive ? '+' : '-'}${formatMoney(net.abs(), trip.baseCurrency)}',
                               style: TextStyle(
+                                fontFamily: 'Liberation Sans',
                                 color: isDark ? Colors.black : Colors.white,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 18,
@@ -850,7 +857,7 @@ class _OverviewTab extends ConsumerWidget {
                 ],
               ],
             ),
-          ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.08, end: 0, duration: 400.ms, delay: 100.ms, curve: Curves.easeOut),
+          ),
           const SizedBox(height: 12),
 
           // --- Smart Insight Card ---
@@ -881,7 +888,7 @@ class _OverviewTab extends ConsumerWidget {
                 ),
               ],
             ),
-          ).animate().fadeIn(duration: 350.ms, delay: 250.ms),
+          ),
           const SizedBox(height: 16),
 
           // --- Who Owes Whom Card ---
@@ -1146,6 +1153,7 @@ class _HeroStat extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
+              fontFamily: 'Liberation Sans',
               color: dark
                   ? Colors.black.withValues(alpha: 0.5)
                   : Colors.white.withValues(alpha: 0.75),
@@ -1157,6 +1165,7 @@ class _HeroStat extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
+              fontFamily: 'Liberation Sans',
               color: dark ? Colors.black : Colors.white,
               fontWeight: FontWeight.w700,
               fontSize: 16,
@@ -1597,7 +1606,7 @@ class _ExpensesTabState extends ConsumerState<_ExpensesTab> {
                   itemBuilder: (_, i) {
                     final cat = categories.elementAt(i);
                     return ChoiceChip(
-                      label: Text(cat, style: const TextStyle(fontSize: 12)),
+                      label: Text(cat, style: const TextStyle(fontFamily: 'Liberation Sans', fontSize: 12)),
                       selected: _filterCategory == cat,
                       onSelected: (_) => setState(() => _filterCategory = cat),
                       visualDensity: VisualDensity.compact,
@@ -1937,7 +1946,7 @@ class _PaymentsTab extends ConsumerWidget {
                       context, ref, tripId, members, baseCurrency,
                     ),
                     icon: const Icon(Icons.add),
-                    label: const Text('Record payment'),
+                    label: const Text('Record payment', style: TextStyle(fontFamily: 'Liberation Sans')),
                   ),
                 ),
               );

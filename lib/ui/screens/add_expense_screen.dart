@@ -73,7 +73,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Expense' : 'Add Expense'),
+        title: Text(_isEditing ? 'Edit Expense' : 'Add Expense', style: const TextStyle(fontFamily: 'Liberation Sans')),
         actions: [
           TextButton(
             onPressed: _saving ? null : _submit,
@@ -83,7 +83,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Save'),
+                : const Text('Save', style: TextStyle(fontFamily: 'Liberation Sans')),
           ),
         ],
       ),
@@ -188,8 +188,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         const SizedBox(height: 16),
         SegmentedButton<String>(
           segments: const [
-            ButtonSegment(value: 'equal', label: Text('Equal (all)')),
-            ButtonSegment(value: 'custom', label: Text('Subset')),
+            ButtonSegment(value: 'equal', label: Text('Equal (all)', style: TextStyle(fontFamily: 'Liberation Sans'))),
+            ButtonSegment(value: 'custom', label: Text('Subset', style: TextStyle(fontFamily: 'Liberation Sans'))),
           ],
           selected: {_splitType},
           onSelectionChanged: (s) => setState(() {
@@ -269,8 +269,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         const SizedBox(height: 8),
         SegmentedButton<String>(
           segments: const [
-            ButtonSegment(value: 'auto', label: Text('Auto (live)')),
-            ButtonSegment(value: 'manual', label: Text('Manual')),
+            ButtonSegment(value: 'auto', label: Text('Auto (live)', style: TextStyle(fontFamily: 'Liberation Sans'))),
+            ButtonSegment(value: 'manual', label: Text('Manual', style: TextStyle(fontFamily: 'Liberation Sans'))),
           ],
           selected: {_rateMode},
           onSelectionChanged: (s) => setState(() => _rateMode = s.first),

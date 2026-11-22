@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -5,6 +8,12 @@ plugins {
     // END: FlutterFire Configuration
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -34,23 +43,31 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
-            if (keystorePath != null && file(keystorePath).exists()) {
-                storeFile = file(keystorePath)
-                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
-                keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ""
-                keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            } else {
+                val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+                if (keystorePath != null && file(keystorePath).exists()) {
+                    storeFile = file(keystorePath)
+                    storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
+                    keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ""
+                    keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""
+                }
             }
         }
     }
 
     buildTypes {
         release {
-            val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
-            signingConfig = if (keystorePath != null && file(keystorePath).exists()) {
+            val hasReleaseKey = keystorePropertiesFile.exists() ||
+                (System.getenv("ANDROID_KEYSTORE_PATH") != null && file(System.getenv("ANDROID_KEYSTORE_PATH")).exists())
+            signingConfig = if (hasReleaseKey) {
                 signingConfigs.getByName("release")
             } else {
-                signingConfigs.getByName("debug")
+                throw GradleException("Release build requires a valid release keystore via key.properties or ANDROID_KEYSTORE_PATH.")
             }
         }
     }

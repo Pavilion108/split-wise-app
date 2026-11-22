@@ -63,3 +63,27 @@ app.*.map.json
 node_modules/
 .firebase/
 build/
+
+# Credentials and secrets
+.env
+*.env
+amazon-appstore-package/.env
+key.properties
+*.jks
+*.keystore
+*.apk
+
+# Local scratch and preview artifacts
+sample_designs/
+media-review-gallery/
+scripts/
+mockup.*
+website_branding_showcase.html
+spliti5_*preview*
+spliti5_realistic_showcase.jpg
+user_logo_cropped.png
+badge_*.png
+emblem_*.png
+spliti5_crest_gold.png
+test/capture_*.dart
+test/run_all_captures.py

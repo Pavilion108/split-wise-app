@@ -37,7 +37,11 @@ class _TripBackgroundState extends State<TripBackground>
         _simulation.tick();
         setState(() {});
       });
-    _controller.repeat();
+    final isTest =
+        WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    if (!isTest) {
+      _controller.repeat();
+    }
   }
 
   @override

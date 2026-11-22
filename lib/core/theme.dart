@@ -48,6 +48,7 @@ ThemeData _buildTheme(ColorScheme scheme, Brightness brightness) {
 
   return ThemeData(
     useMaterial3: true,
+    fontFamily: 'Liberation Sans',
     colorScheme: scheme,
     brightness: brightness,
     scaffoldBackgroundColor: surfaceColor,
@@ -61,6 +62,7 @@ ThemeData _buildTheme(ColorScheme scheme, Brightness brightness) {
           ? SystemUiOverlayStyle.light
           : SystemUiOverlayStyle.dark,
       titleTextStyle: TextStyle(
+        fontFamily: 'Liberation Sans',
         color: isDark ? AppColors.darkTextPrimary : scheme.onSurface,
         fontSize: 22,
         fontWeight: FontWeight.w700,
@@ -135,8 +137,28 @@ ThemeData _buildTheme(ColorScheme scheme, Brightness brightness) {
           borderRadius: BorderRadius.circular(12),
         ),
         textStyle: const TextStyle(
+          fontFamily: 'Liberation Sans',
           fontWeight: FontWeight.w600,
           fontSize: 15,
+        ),
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        textStyle: WidgetStateProperty.all(
+          const TextStyle(
+            fontFamily: 'Liberation Sans',
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        textStyle: const TextStyle(
+          fontFamily: 'Liberation Sans',
+          fontWeight: FontWeight.w600,
         ),
       ),
     ),
@@ -180,6 +202,7 @@ ThemeData _buildTheme(ColorScheme scheme, Brightness brightness) {
       backgroundColor: isDark ? AppColors.darkCard : AppColors.surface,
       side: BorderSide(color: borderColor),
       labelStyle: TextStyle(
+        fontFamily: 'Liberation Sans',
         color: isDark ? AppColors.darkTextPrimary : null,
       ),
       shape: RoundedRectangleBorder(

@@ -62,7 +62,7 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
     final myDeviceId = ref.watch(deviceIdentityProvider).id;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Members')),
+      appBar: AppBar(title: const Text('Members', style: TextStyle(fontFamily: 'Liberation Sans'))),
       body: CenteredBody(
         child: StreamBuilder<List<Member>>(
           stream: repo.watchMembers(widget.tripId),
@@ -216,7 +216,9 @@ class _MemberScreenState extends ConsumerState<MemberScreen> {
                                     ? m.name[0].toUpperCase()
                                     : '?'),
                             style: const TextStyle(
-                                color: Colors.white, fontSize: 16),
+                                fontFamily: 'Liberation Sans',
+                                color: Colors.white,
+                                fontSize: 16),
                           ),
                         ),
                         title: Text(m.name),

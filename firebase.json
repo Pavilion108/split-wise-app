@@ -50,6 +50,21 @@
     ],
     "redirects": [
       {
+        "source": "/app.html",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/app",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/app/**",
+        "destination": "/",
+        "type": 301
+      },
+      {
         "source": "/split-wise-app",
         "destination": "https://drive.usercontent.google.com/download?id=1AvHSk92GTBZO-YbiuurPblzemOcX2-Lm&export=download&confirm=t",
         "type": 302
@@ -61,6 +76,10 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/portal",
+        "destination": "/portal.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"
