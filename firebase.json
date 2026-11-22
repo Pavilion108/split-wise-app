@@ -66,12 +66,17 @@
       },
       {
         "source": "/split-wise-app",
-        "destination": "https://drive.usercontent.google.com/download?id=1AvHSk92GTBZO-YbiuurPblzemOcX2-Lm&export=download&confirm=t",
+        "destination": "https://github.com/Pavilion108/split-wise-app/releases/latest/download/spliti5-v1.0.19-release.apk",
         "type": 302
       },
       {
         "source": "/split-wise.apk",
-        "destination": "https://drive.usercontent.google.com/download?id=1AvHSk92GTBZO-YbiuurPblzemOcX2-Lm&export=download&confirm=t",
+        "destination": "https://github.com/Pavilion108/split-wise-app/releases/latest/download/spliti5-v1.0.19-release.apk",
+        "type": 302
+      },
+      {
+        "source": "/spliti5-ios.ipa",
+        "destination": "https://github.com/Pavilion108/split-wise-app/releases/latest/download/spliti5-ios-release.ipa",
         "type": 302
       }
     ],
