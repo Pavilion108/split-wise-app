@@ -1607,6 +1607,11 @@
     .footer-links a:hover { color: var(--gold); }
 
     /* Live Application Portal Workspace */
+    #spliti5-3d-overlay {
+      display: none !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
     .app-portal-workspace {
       position: fixed;
       inset: 0;
@@ -2797,7 +2802,7 @@
             client_id: '612502468471-q85dr65euduai9nnlr6ejh4gk2us4588.apps.googleusercontent.com',
             callback: handleGsiCredentialResponse,
             auto_select: false,
-            cancel_on_tap_outside: true
+            cancel_on_tap_outside: false
           });
           const slot = document.getElementById('googleGisBtnContainer');
           if (slot) {
@@ -2907,17 +2912,23 @@
         localStorage.setItem('splitwise_user_name', user.name);
         localStorage.setItem('splitwise_user_email', user.email);
         localStorage.setItem('splitwise_user_photo', user.picture);
-        // Sync to Flutter SharedPreferences
+        // Sync to Flutter SharedPreferences (JSON encoded strings required by shared_preferences_web)
         localStorage.setItem('flutter.splitwise_signed_in', 'true');
-        localStorage.setItem('flutter.splitwise_user_id', user.id || 'usr_traveler');
-        localStorage.setItem('flutter.splitwise_user_email', user.email || '');
-        localStorage.setItem('flutter.splitwise_user_name', user.name || '');
-        localStorage.setItem('flutter.splitwise_user_photo', user.picture || '');
+        localStorage.setItem('flutter.splitwise_user_id', JSON.stringify(user.id || 'usr_traveler'));
+        localStorage.setItem('flutter.splitwise_user_email', JSON.stringify(user.email || ''));
+        localStorage.setItem('flutter.splitwise_user_name', JSON.stringify(user.name || ''));
+        localStorage.setItem('flutter.splitwise_user_photo', JSON.stringify(user.picture || ''));
       } catch (_) {}
 
       updateUIPortalState(true);
       closeGoogleSignInModal();
       showToast(`✓ Welcome to Spliti5 Portal, ${user.name}!`);
+
+      // If live portal iframe is already mounted, reload it with the new authenticated user
+      const iframe = document.getElementById('portalLiveIframe');
+      if (iframe && iframe.src && iframe.src.includes('portal.html')) {
+        iframe.src = '/portal.html?t=' + Date.now();
+      }
     }
 
     function signOutUser() {
@@ -3055,10 +3066,10 @@
         try {
           localStorage.setItem('splitwise_signed_in', 'true');
           localStorage.setItem('flutter.splitwise_signed_in', 'true');
-          localStorage.setItem('flutter.splitwise_user_id', currentUserSession.id || 'usr_traveler');
-          localStorage.setItem('flutter.splitwise_user_email', currentUserSession.email || 'vighnesh.bagal99@gmail.com');
-          localStorage.setItem('flutter.splitwise_user_name', currentUserSession.name || 'Vighnesh Bagal');
-          localStorage.setItem('flutter.splitwise_user_photo', currentUserSession.picture || '');
+          localStorage.setItem('flutter.splitwise_user_id', JSON.stringify(currentUserSession.id || 'usr_traveler'));
+          localStorage.setItem('flutter.splitwise_user_email', JSON.stringify(currentUserSession.email || 'vighnesh.bagal99@gmail.com'));
+          localStorage.setItem('flutter.splitwise_user_name', JSON.stringify(currentUserSession.name || 'Vighnesh Bagal'));
+          localStorage.setItem('flutter.splitwise_user_photo', JSON.stringify(currentUserSession.picture || ''));
 
           const barImg = document.getElementById('portalBarUserImg');
           const barName = document.getElementById('portalBarUserName');

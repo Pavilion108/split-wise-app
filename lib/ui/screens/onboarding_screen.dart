@@ -572,7 +572,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ),
               ),
-            Model3DOverlay(show: _popupVisible),
             if (_popupVisible)
               Align(
                 alignment: Alignment.bottomCenter,
