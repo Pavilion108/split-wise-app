@@ -12,7 +12,12 @@ Widget buildSignInButton(BuildContext context) {
       final result = await auth.signIn();
       if (context.mounted && !result.success && result.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign in failed: ${result.error}')),
+          SnackBar(
+            content: const Text(
+              'Google Play Services unavailable on this device.\nUse "Demo / Reviewer Account" below to enter.',
+            ),
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     },

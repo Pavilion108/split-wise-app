@@ -1,6 +1,33 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    "trips": {
+      "$tripId": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["updatedAt", "createdAt"]
+      }
+    },
+    "invite_codes": {
+      ".read": true,
+      "$code": {
+        ".write": true
+      }
+    },
+    "users": {
+      "$userId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "directory": {
+      ".read": true,
+      "$userId": {
+        ".write": true
+      }
+    },
+    "photos": {
+      ".read": true,
+      ".write": true
+    }
   }
 }

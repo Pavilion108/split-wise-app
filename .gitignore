@@ -88,4 +88,4 @@ spliti5_crest_gold.png
 test/capture_*.dart
 test/run_all_captures.py
 ios-package/
-amazon-appstore-package/*.apk
+amazon-appstore-package/

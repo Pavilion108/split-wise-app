@@ -47,6 +47,7 @@ class AuthService extends ChangeNotifier {
   CachedGoogleIdentity? _cachedUser;
 
   bool get isSignedIn => currentUser != null;
+  bool get isReviewerUser => currentUser?.email == 'reviewer@amazon-test.com';
 
   /// Whether auto-login was successful (no user interaction needed).
   bool get wasAutoLogin => _wasAutoLogin;
@@ -285,6 +286,39 @@ class AuthService extends ChangeNotifier {
         photoUrl: _currentUser!.photoUrl,
       ),
       accessToken: driveToken,
+    );
+  }
+
+  /// Demo / Reviewer sign-in for Amazon Appstore certification and Fire OS testing
+  /// (bypasses Google Play Services dependency on Amazon Kindle Fire devices).
+  Future<AuthResult> signInAsReviewer({
+    String email = 'reviewer@amazon-test.com',
+    String displayName = 'Spliti5 Reviewer',
+  }) async {
+    const reviewerId = 'amz_reviewer_test_user';
+    final reviewer = const CachedGoogleIdentity(
+      id: reviewerId,
+      email: 'reviewer@amazon-test.com',
+      displayName: 'Spliti5 Reviewer',
+      photoUrl: null,
+    );
+    _currentUser = reviewer;
+    _cachedUser = reviewer;
+    await _saveUserLocally(reviewer);
+    await _setSignedInFlag(true);
+    notifyListeners();
+
+    try {
+      await _upsertDirectory(reviewer);
+    } catch (_) {}
+
+    return AuthResult.success(
+      user: AuthUser(
+        id: reviewer.id,
+        email: reviewer.email,
+        displayName: reviewer.displayName ?? 'Spliti5 Reviewer',
+        photoUrl: null,
+      ),
     );
   }
 

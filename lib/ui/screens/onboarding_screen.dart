@@ -7,10 +7,10 @@ import '../../core/platform/platform_detect.dart';
 import '../../core/platform/web_action_bridge.dart';
 import '../../core/platform/web_download.dart';
 import '../../services/auth_service.dart';
+import '../../services/reviewer_seed_service.dart';
 import '../../providers/app_provider.dart';
 import '../widgets/sign_in_button.dart';
 import '../widgets/video_background.dart';
-import '../widgets/model_3d_overlay.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -474,11 +474,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Google Sign-in Button
+                      // Google Sign-in & Reviewer Access
                       const SizedBox(
                         width: double.infinity,
-                        height: 52,
                         child: Center(child: SignInButton()),
+                      ),
+                      const SizedBox(height: 10),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final auth = ref.read(authServiceProvider);
+                            await auth.signInAsReviewer();
+                            await seedReviewerSampleTrip(ref);
+                          },
+                          icon: const Icon(
+                            Icons.verified_user_outlined,
+                            size: 16,
+                            color: Color(0xFFFDE68A),
+                          ),
+                          label: const Text(
+                            'Continue with Demo / Reviewer Account',
+                            style: TextStyle(
+                              color: Color(0xFFFDE68A),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            backgroundColor: Colors.white.withValues(alpha: 0.05),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(color: const Color(0xFFFDE68A).withValues(alpha: 0.25)),
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Text(
